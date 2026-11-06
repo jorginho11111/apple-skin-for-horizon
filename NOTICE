@@ -1,0 +1,15 @@
+AppleSkin for Horizon
+
+This repository adapts AppleSkin-Horizon by @soufied:
+https://github.com/soufied/AppleSkin-Horizon
+Base commit: 20180ee8c7606d4cdc139211a02ca587ae2710fd
+The MIT license and copyright notice are preserved in LICENSE.
+
+It is based on AppleSkin by squeek502:
+https://github.com/squeek502/AppleSkin
+AppleSkin is dedicated to the public domain under the Unlicense;
+its notice is preserved in LICENSE-APPLESKIN.
+
+Local changes: named Horizon hooks, live main/off-hand food selection,
+edibility checks, an off-hand setting, deterministic packaging, and CI.
+This project is not an official AppleSkin or Horizon release.

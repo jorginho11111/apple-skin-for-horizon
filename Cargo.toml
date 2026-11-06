@@ -1,0 +1,10 @@
+[package]
+name = "horizon-mod-appleskin"
+version = "0.2.0"
+edition = "2024"
+license = "MIT"
+publish = false
+description = "AppleSkin for Horizon: live hunger and saturation previews from the food in either hand."
+
+[lib]
+path = "mixins/appleskin/runtime.rs"

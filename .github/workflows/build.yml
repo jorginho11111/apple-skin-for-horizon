@@ -1,0 +1,124 @@
+name: Build AppleSkin native
+
+on:
+  push:
+    branches: ["arena/a6ac48fb-apple-skin-for-horizon", main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      horizon:
+        description: "Horizon commit/tag, latest, or empty for the tested pin"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST: "1.99.1"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tests:
+    name: Tests and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST" --profile minimal --component rustfmt --component clippy
+          rustup default "$RUST"
+      - name: Format Rust
+        run: cargo fmt
+      - name: Persist CI formatting
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mixins/appleskin/runtime.rs
+          if ! git diff --cached --quiet; then
+            git commit -m "Format Rust sources [skip ci]"
+            git push origin HEAD:arena/a6ac48fb-apple-skin-for-horizon
+          fi
+      - name: Check Rust formatting
+        run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: python3 -m unittest discover -s tests -v
+      - name: Package native mod
+        run: python3 tools/native.py package
+      - name: Verify archive
+        run: |
+          python3 - <<'PY'
+          import json, zipfile
+          from pathlib import Path
+          path, = Path("target").glob("appleskin-*.hnmod")
+          with zipfile.ZipFile(path) as z:
+              assert z.testzip() is None
+              names = z.namelist()
+              assert len(names) == len(set(names))
+              manifest = json.loads(z.read("horizon-native.json"))
+              assert manifest["id"] == "appleskin"
+              assert manifest["game"] == "26.3"
+              assert manifest["hooks"] >= 139
+              assert "mixins/appleskin/horizon-mixin.toml" in names
+              assert "mixins/appleskin/LICENSE" in names
+              assert "mixins/appleskin/LICENSE-APPLESKIN" in names
+              assert all(n == "horizon-native.json" or n.startswith("mixins/appleskin/") for n in names)
+              print(path, manifest)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appleskin-native
+          path: |
+            target/appleskin-*.hnmod
+            target/appleskin-*.hnmod.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  compile:
+    name: Compile into Horizon
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST" --profile minimal
+          rustup default "$RUST"
+      - name: Install game build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
+      - name: Cache Horizon dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target/cargo
+            target/horizon-mixins
+          key: horizon-${{ env.RUST }}-${{ hashFiles('compatibility.json') }}-${{ github.run_id }}
+          restore-keys: |
+            horizon-${{ env.RUST }}-${{ hashFiles('compatibility.json') }}-
+      - name: Apply mixins and compile horizon-client
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HORIZON_INPUT: ${{ inputs.horizon || '' }}
+          CARGO_BUILD_JOBS: "2"
+        run: |
+          python3 tools/native.py check ${HORIZON_INPUT:+--horizon "$HORIZON_INPUT"}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: horizon-compile-report
+          path: target/compile-report.json
+          if-no-files-found: error
+          retention-days: 30
