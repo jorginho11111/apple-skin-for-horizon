@@ -143,6 +143,8 @@ def render(variants: list[list[tuple[int, int, int, int]]]) -> str:
         "    pub rgb: u32,",
         "}",
         "",
+        "// Keep the generated table compact and stable under cargo fmt.",
+        "#[rustfmt::skip]",
         "pub const ICONS: [&[PixelRun]; 4] = [",
     ]
     for runs in variants:
