@@ -14,21 +14,29 @@ Port de AppleSkin como **`.hmod`** para o port Android oficial do Horizon:
 
 ## O que ele faz
 
-Quando você segura uma comida na **mão principal**, o mod sobrepõe a barra de
-fome vanilla:
+Quando você segura uma comida na **mão principal**, o mod desenha uma prévia da
+fome projetada após comer:
 
-- desenha os ícones/meios ícones de fome que você ganharia ao comer, por cima
-  dos atuais, com **opacidade baixa pulsante** — só a opacidade aumenta e
-  diminui; os ícones **não se movem**;
-- desenha uma faixa **amarela** por cima: o **ganho potencial de saturação**
-  do alimento, limitado pela fome projetada;
-- mantém um painel de texto opcional, com modo compacto e posição configurável.
+- uma linha de ícones/meios ícones em posição fixa **logo acima da barra de fome
+  vanilla**, com **opacidade pulsante** — só a opacidade aumenta e diminui; os
+  ícones **não se movem**;
+- uma faixa **amarela** sobre os ícones: o **ganho potencial de saturação** do
+  alimento, limitado pela fome projetada;
+- um painel de texto opcional, com modo compacto e posição configurável.
+
+### Por que acima da barra, e não exatamente sobre os ícones?
+
+No Horizon Android `v0.7.7`, o jogo desenha os shapes de mods (`render.set_hud`)
+**antes** da barra de fome vanilla, apesar de a documentação da API dizer que eles
+ficam por cima do HUD. Os ícones vanilla opacos cobrem uma prévia desenhada exatamente
+na mesma posição. A v0.4.1 usa uma linha compatível logo acima da barra para ficar
+visível no APK atual, sem movimento e sem depender de um APK modificado.
 
 Comandos:
 
 ```text
 /appleskin              liga/desliga
-/appleskin overlay      alterna sobreposição da barra / painel de texto
+/appleskin overlay      alterna prévia de ícones / painel de texto
 /appleskin pulse        alterna pulsação de opacidade
 /appleskin status       mostra a prévia atual no chat
 /appleskin compact      alterna modo compacto (texto)
@@ -49,12 +57,11 @@ principal, mas **não** expõe:
 - modo de jogo.
 
 Por isso a faixa amarela é o **ganho potencial de saturação do alimento**, não
-a reserva real de saturação do jogador. A sobreposição usa a posição vanilla da
-barra de fome; em veículo, modo criativo ou com outro mod alterando o HUD, ela
-pode ficar sobre uma área onde a barra não está visível. Apenas alimentos
-vanilla de Minecraft 26.3 presentes em [`food-data/foods-26.3.json`](food-data/foods-26.3.json)
-são reconhecidos. As capacidades `input`, `render` e `ui` são experimentais na
-API `0.1`.
+a reserva real de saturação do jogador. Em veículo, modo criativo ou com outro mod
+alterando o HUD, a linha de prévia pode sobrepor outros elementos ou ficar onde a
+barra de fome não está visível. Apenas alimentos vanilla de Minecraft 26.3 presentes
+em [`food-data/foods-26.3.json`](food-data/foods-26.3.json) são reconhecidos. As
+capacidades `input`, `render` e `ui` são experimentais na API `0.1`.
 
 ## Download e instalação
 
@@ -113,7 +120,7 @@ publicada automaticamente; o erro fica no GitHub Actions.
 ```text
 horizon-mod.toml              manifesto .hmod (API 0.1, client)
 src/lib.rs                    mod Rust: HUD, comandos, configurações
-src/overlay.rs                geometria da barra e pulsação de opacidade + testes
+src/overlay.rs                geometria da prévia compatível e pulsação + testes
 src/preview.rs                matemática pura da prévia + testes
 src/foods.rs                  tabela gerada de alimentos vanilla 26.3
 food-data/foods-26.3.json     dados nutricionais pinados do mcmeta 26.3

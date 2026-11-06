@@ -1,9 +1,11 @@
 //! AppleSkin for Horizon Android (`.hmod`, sandboxed WebAssembly component).
 //!
 //! Reads the local player's hunger and the main-hand stack through the official
-//! Horizon Android mod API. By default it overlays predicted hunger icons on
-//! the vanilla food row (opacity-only pulse) and draws the held food's
-//! potential saturation gain in yellow. A text panel remains available.
+//! Horizon Android mod API. By default it draws a projected hunger row with
+//! an opacity-only pulse in a fixed row above the vanilla food bar, because
+//! Horizon v0.7.7 draws mod HUD shapes before the vanilla food icons. The
+//! held food's potential saturation gain is highlighted in yellow. A text
+//! panel remains available.
 //!
 //! The API does not expose current saturation/exhaustion, the off hand, or the
 //! game mode, so the yellow overlay is the food's potential gain, not the
@@ -28,12 +30,12 @@ const SAT_COLOR: u32 = 0xFF_E0_8A;
 const TEXT_COLOR: u32 = 0xFF_FF_FF;
 
 /// Opacity-only pulse: positions never move.
-const PULSE_MIN: u8 = 48;
-const PULSE_MAX: u8 = 136;
+const PULSE_MIN: u8 = 90;
+const PULSE_MAX: u8 = 220;
 const PULSE_PERIOD: f32 = 1.6;
-const PULSE_OFF_ALPHA: u8 = 96;
-/// Yellow saturation overlay: potential gain of the held food.
-const SAT_OVERLAY_COLOR: u32 = 0x5A_FF_D5_4A;
+const PULSE_OFF_ALPHA: u8 = 160;
+/// Yellow saturation highlight: potential gain of the held food.
+const SAT_OVERLAY_COLOR: u32 = 0xB0_FF_D5_4A;
 
 const TOGGLE_BUTTON: u32 = 1;
 const OVERLAY_BUTTON: u32 = 2;
@@ -74,7 +76,7 @@ impl Position {
 
 struct AppleSkin {
     enabled: bool,
-    /// Overlay the vanilla hunger bar instead of drawing a text panel.
+    /// Draw the icon preview above the hunger bar instead of a text panel.
     overlay: bool,
     /// Animate opacity only (no movement).
     pulse: bool,
@@ -139,7 +141,7 @@ impl AppleSkin {
             }),
             Widget::Button(ButtonWidget {
                 id: OVERLAY_BUTTON,
-                label: format!("Sobrepor barra de fome: {}", on(self.overlay)),
+                label: format!("Prévia de ícones acima da barra: {}", on(self.overlay)),
             }),
             Widget::Button(ButtonWidget {
                 id: PULSE_BUTTON,
@@ -155,7 +157,7 @@ impl AppleSkin {
             }),
             Widget::Text(TextWidget {
                 id: 6,
-                text: "A API Android não expõe saturação atual, exaustão nem mão secundária. O amarelo é o ganho potencial de saturação do alimento, limitado pela fome projetada.".into(),
+                text: "Horizon v0.7.7 desenha a barra vanilla depois dos mods; a prévia fica fixa acima da barra. O amarelo é o ganho potencial de saturação do alimento, não a saturação atual.".into(),
                 color: 0xAA_AA_AA,
             }),
         ]);
@@ -188,9 +190,9 @@ impl AppleSkin {
         if signature == self.last {
             return;
         }
-        let (x_right, y) = overlay::anchor(w, h);
+        let (x_right, y) = overlay::preview_anchor(w, h);
         let mut shapes = Vec::new();
-        for icon in overlay::hunger_icons(p.hunger_before, p.hunger_after, x_right, y) {
+        for icon in overlay::projected_icons(p.hunger_after, x_right, y) {
             shapes.push(Shape::Sprite(SpriteShape {
                 sprite: if icon.half {
                     "hud/food_half".into()
@@ -213,7 +215,7 @@ impl AppleSkin {
                     x: rect.x,
                     y: rect.y,
                     w: rect.w,
-                    h: overlay::ICON,
+                    h: rect.h,
                 },
                 color: SAT_OVERLAY_COLOR,
             }));
@@ -450,9 +452,9 @@ impl Mod for AppleSkin {
                 self.last.clear();
                 Ok(Some(
                     if self.overlay {
-                        "Sobreposição da barra de fome ligada."
+                        "Prévia de ícones acima da barra ligada."
                     } else {
-                        "Sobreposição da barra de fome desligada (painel de texto)."
+                        "Prévia de ícones desligada (painel de texto)."
                     }
                     .into(),
                 ))

@@ -1,0 +1,32 @@
+name: Temporary Rust formatting
+
+on:
+  push:
+    branches: ["arena/4949d79d-apple-skin-for-horizon"]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --component rustfmt
+          rustup default 1.95.0
+      - name: Format
+        run: cargo fmt
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          if ! git diff --cached --quiet; then
+            git commit -m "Format Rust sources [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi

@@ -1,10 +1,12 @@
-//! Geometry and pulse math for the hunger-bar overlay.
+//! Geometry and pulse math for the compatible hunger preview.
 //!
-//! The layout mirrors vanilla's HUD food row: ten 9x9 icons, right-to-left,
-//! 8 pixels apart, with the right edge at `gui_width / 2 + 91` and the top at
-//! `gui_height - 39`. Only opacity animates; positions never move.
+//! Horizon Android v0.7.7 draws mod HUD shapes *before* the vanilla health/food
+//! rows, even though the WIT documentation says they are drawn over the HUD.
+//! An exact overlay on the food icons is therefore covered by the opaque
+//! vanilla sprites. The compatible preview is a fixed row 10 GUI pixels above
+//! the vanilla food row. Only opacity animates; positions never move.
 
-/// One predicted hunger icon to draw over the vanilla row.
+/// One projected hunger icon in the preview row.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HungerIcon {
     pub x: f32,
@@ -13,20 +15,33 @@ pub struct HungerIcon {
     pub half: bool,
 }
 
-/// Yellow saturation rectangles, one per covered icon (partial last icon).
+/// Yellow saturation highlight over the preview row (partial last icon).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SatRect {
     pub x: f32,
     pub y: f32,
     pub w: f32,
+    pub h: f32,
 }
 
 pub const ICON: f32 = 9.0;
 pub const PITCH: f32 = 8.0;
+/// Fixed vertical offset from the vanilla food row to the preview row.
+pub const PREVIEW_ROW_OFFSET: f32 = 10.0;
+/// The yellow highlight is a band across the middle of the drumsticks, not a
+/// full 9x9 rectangle, so it reads as saturation on top of the meat icons.
+pub const SAT_BAND_HEIGHT: f32 = 3.0;
+pub const SAT_BAND_TOP: f32 = 3.0;
 
 /// Vanilla `Hud` food-row anchor.
 pub fn anchor(gui_w: f32, gui_h: f32) -> (f32, f32) {
     ((gui_w / 2.0).floor() + 91.0, gui_h - 39.0)
+}
+
+/// Compatible preview anchor: same right edge, fixed row above the food bar.
+pub fn preview_anchor(gui_w: f32, gui_h: f32) -> (f32, f32) {
+    let (x_right, y) = anchor(gui_w, gui_h);
+    (x_right, y - PREVIEW_ROW_OFFSET)
 }
 
 fn level(food: u32, icon: u32) -> u32 {
@@ -40,13 +55,12 @@ fn level(food: u32, icon: u32) -> u32 {
     }
 }
 
-/// Icons that would gain hunger if the held food were eaten.
-pub fn hunger_icons(before: u32, after: u32, x_right: f32, y: f32) -> Vec<HungerIcon> {
+/// The projected food row after eating: full/half icons for `hunger_after`.
+pub fn projected_icons(hunger_after: u32, x_right: f32, y: f32) -> Vec<HungerIcon> {
     let mut out = Vec::new();
     for n in 0..10u32 {
-        let b = level(before, n);
-        let a = level(after, n);
-        if a > b {
+        let a = level(hunger_after, n);
+        if a > 0 {
             out.push(HungerIcon {
                 x: x_right - n as f32 * PITCH - ICON,
                 y,
@@ -57,7 +71,7 @@ pub fn hunger_icons(before: u32, after: u32, x_right: f32, y: f32) -> Vec<Hunger
     out
 }
 
-/// Potential saturation gain drawn as yellow overlays on the food row.
+/// Potential saturation gain drawn as a yellow band over the preview row.
 ///
 /// The Android API does not expose current saturation, so this is the food's
 /// gain, capped by the projected hunger (vanilla saturation cannot exceed the
@@ -75,8 +89,9 @@ pub fn saturation_rects(gain_tenths: u32, hunger_after: u32, x_right: f32, y: f3
         let icon_x = x_right - n as f32 * PITCH - ICON;
         out.push(SatRect {
             x: icon_x + ICON - w,
-            y,
+            y: y + SAT_BAND_TOP,
             w,
+            h: SAT_BAND_HEIGHT,
         });
     }
     out
@@ -103,27 +118,36 @@ mod tests {
     }
 
     #[test]
-    fn bread_from_twelve_adds_two_and_a_half_icons() {
-        let icons = hunger_icons(12, 17, 304.0, 201.0);
-        assert_eq!(icons.len(), 3);
-        assert!(!icons[0].half);
-        assert!(!icons[1].half);
-        assert!(icons[2].half);
-        assert_eq!(icons[0].x, 304.0 - 6.0 * 8.0 - 9.0);
-        assert_eq!(icons[2].x, 304.0 - 8.0 * 8.0 - 9.0);
-        assert!(icons.iter().all(|i| i.y == 201.0));
+    fn preview_row_is_fixed_above_vanilla() {
+        let (x, y) = preview_anchor(427.0, 240.0);
+        assert_eq!((x, y), (304.0, 191.0));
+        assert_eq!(anchor(427.0, 240.0).1 - y, PREVIEW_ROW_OFFSET);
     }
 
     #[test]
-    fn no_icons_when_hunger_does_not_change() {
-        assert!(hunger_icons(20, 20, 304.0, 201.0).is_empty());
-        assert!(hunger_icons(17, 17, 304.0, 201.0).is_empty());
+    fn projected_row_after_bread_from_twelve() {
+        // 12 + 5 = 17: eight full icons and one half icon.
+        let icons = projected_icons(17, 304.0, 191.0);
+        assert_eq!(icons.len(), 9);
+        assert!(icons[..8].iter().all(|i| !i.half));
+        assert!(icons[8].half);
+        assert_eq!(icons[0].x, 304.0 - 9.0);
+        assert_eq!(icons[8].x, 304.0 - 8.0 * 8.0 - 9.0);
+        assert!(icons.iter().all(|i| i.y == 191.0));
+    }
+
+    #[test]
+    fn projected_row_full_and_empty() {
+        let full = projected_icons(20, 304.0, 191.0);
+        assert_eq!(full.len(), 10);
+        assert!(full.iter().all(|i| !i.half));
+        assert!(projected_icons(0, 304.0, 191.0).is_empty());
     }
 
     #[test]
     fn saturation_is_capped_by_projected_hunger() {
         // Golden carrot: +14.4 saturation, but only 6 hunger after eating.
-        let rects = saturation_rects(144, 6, 304.0, 201.0);
+        let rects = saturation_rects(144, 6, 304.0, 191.0);
         assert_eq!(rects.len(), 3);
         assert!(rects.iter().all(|r| (r.w - 9.0).abs() < f32::EPSILON));
     }
@@ -131,7 +155,7 @@ mod tests {
     #[test]
     fn partial_saturation_icon_aligns_to_the_right() {
         // +9.6 saturation => 4 full icons and 0.8 of the fifth.
-        let rects = saturation_rects(96, 20, 304.0, 201.0);
+        let rects = saturation_rects(96, 20, 304.0, 191.0);
         assert_eq!(rects.len(), 5);
         let last = rects[4];
         assert!((last.w - 7.2).abs() < 0.001);
@@ -139,13 +163,36 @@ mod tests {
     }
 
     #[test]
+    fn saturation_band_stays_inside_the_icon() {
+        let rects = saturation_rects(60, 20, 304.0, 191.0);
+        for r in rects {
+            assert_eq!(r.h, SAT_BAND_HEIGHT);
+            assert_eq!(r.y, 191.0 + SAT_BAND_TOP);
+            assert!(r.y + r.h <= 191.0 + ICON);
+        }
+    }
+
+    #[test]
     fn pulse_only_changes_opacity_between_bounds() {
-        assert_eq!(pulse_alpha(0.0, 48, 136, 1.6), 48);
-        assert_eq!(pulse_alpha(0.8, 48, 136, 1.6), 136);
-        assert_eq!(pulse_alpha(1.6, 48, 136, 1.6), 48);
+        assert_eq!(pulse_alpha(0.0, 90, 220, 1.6), 90);
+        assert_eq!(pulse_alpha(0.8, 90, 220, 1.6), 220);
+        assert_eq!(pulse_alpha(1.6, 90, 220, 1.6), 90);
         for i in 0..=32 {
-            let a = pulse_alpha(i as f32 * 0.05, 48, 136, 1.6);
-            assert!((48..=136).contains(&a));
+            let a = pulse_alpha(i as f32 * 0.05, 90, 220, 1.6);
+            assert!((90..=220).contains(&a));
+        }
+    }
+
+    #[test]
+    fn geometry_does_not_depend_on_pulse_phase() {
+        let (x, y) = preview_anchor(427.0, 240.0);
+        let icons = projected_icons(17, x, y);
+        let rects = saturation_rects(60, 17, x, y);
+        for phase in [0.0, 0.4, 0.8, 1.2, 1.6] {
+            let _alpha = pulse_alpha(phase, 90, 220, 1.6);
+            assert_eq!(preview_anchor(427.0, 240.0), (x, y));
+            assert_eq!(projected_icons(17, x, y), icons);
+            assert_eq!(saturation_rects(60, 17, x, y), rects);
         }
     }
 }

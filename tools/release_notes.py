@@ -15,8 +15,14 @@ def main() -> None:
         f"# AppleSkin {v} para Horizon Android",
         "",
         "Mod `.hmod` sandboxed para o port Android oficial do Horizon (`Vasysik/horizon-android`).",
-        "Sobrepõe a barra de fome com ícones previstos e o ganho potencial de saturação da comida segurada na mão principal.",
+        "Mostra uma prévia de fome em ícones, com opacidade pulsante, e o ganho potencial de saturação da comida segurada na mão principal.",
         "",
+    ]
+    if build.get("highlights"):
+        lines += ["## Destaques", ""]
+        lines += [f"- {h}" for h in build["highlights"]]
+        lines += [""]
+    lines += [
         "## Versões",
         "",
         f"- AppleSkin: **{v}**",
@@ -32,15 +38,16 @@ def main() -> None:
         f"2. Confira o SHA-256: `{build['sha256']}`.",
         "3. No Horizon Android, abra **Mods** e use **Import file** para selecionar o `.hmod`, ou cole a URL HTTPS acima e toque em **Import .hmod**.",
         "4. Abra **Installed**, ative **AppleSkin** e inicie o mundo.",
-        "5. Segure uma comida na mão principal. A prévia aparece sobre a barra de fome por padrão.",
+        "5. Segure uma comida na mão principal. A prévia aparece em uma linha fixa logo acima da barra de fome por padrão.",
         "",
         "Comandos: `/appleskin`, `/appleskin overlay`, `/appleskin pulse`, `/appleskin status`, `/appleskin compact`, `/appleskin position`, `/appleskin help`.",
         "Configurações: **Options > Mods > AppleSkin**.",
         "",
         "## O que a prévia mostra",
         "",
-        "- Ícones/meios ícones de fome que você ganharia ao comer, sobrepostos aos atuais, com **opacidade pulsante** (sem movimento).",
-        "- Faixa **amarela** por cima: ganho potencial de saturação do alimento, limitado pela fome projetada.",
+        "- Linha de ícones/meios ícones com a fome projetada após comer, em posição fixa logo acima da barra vanilla, com **opacidade pulsante** (sem movimento).",
+        "- Faixa **amarela** sobre os ícones: ganho potencial de saturação do alimento, limitado pela fome projetada.",
+        "- No Horizon v0.7.7 a prévia fica acima da barra porque o jogo desenha os ícones vanilla depois dos shapes de mods; uma sobreposição exata seria coberta.",
         "- Painel de texto opcional (`/appleskin overlay`), modo compacto e posição configurável.",
         "",
         "## Erros e limitações conhecidos",

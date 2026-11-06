@@ -1,5 +1,5 @@
 {
-  "mod_version": "0.4.0",
+  "mod_version": "0.4.1",
   "game": "26.3",
   "platform": "android",
   "package_format": "hmod",
@@ -30,9 +30,15 @@
   "limitations": [
     "A API 0.1 do Horizon Android expõe a fome atual, mas não a saturação atual, a exaustão, a mão secundária nem o modo de jogo.",
     "A faixa amarela é o ganho potencial de saturação do alimento segurado, limitado pela fome projetada; não é a saturação atual do jogador.",
-    "A sobreposição usa a posição vanilla da barra de fome; em veículo, modo criativo ou com outro mod alterando o HUD, ela pode ficar sobre uma área onde a barra não está visível.",
+    "No Horizon Android v0.7.7, os shapes de mods são desenhados antes da barra de fome vanilla; por isso a prévia compatível fica logo acima da barra, não exatamente sobre os ícones vanilla.",
+    "Em veículo, modo criativo ou com outro mod alterando o HUD, a linha de prévia pode sobrepor outros elementos ou ficar onde a barra de fome não está visível.",
     "Apenas alimentos vanilla de Minecraft 26.3 presentes em food-data/foods-26.3.json são reconhecidos; itens de outros mods não têm valores nutricionais expostos pela API.",
     "As capacidades input, render e ui são experimentais na API 0.1 e podem mudar em versões futuras do Horizon.",
     "O pacote foi validado em CI e no sandbox de mods; teste em aparelho Android real ainda é necessário."
+  ],
+  "highlights": [
+    "Corrige a prévia invisível no Horizon Android v0.7.7: o jogo desenha os shapes de mods antes da barra de fome vanilla, então a prévia agora fica em uma linha fixa logo acima da barra.",
+    "Mantém animação somente de opacidade, sem movimento dos ícones.",
+    "Aumenta o contraste da prévia e desenha o amarelo como uma faixa sobre os ícones previstos."
   ]
 }

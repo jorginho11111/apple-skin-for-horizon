@@ -36,11 +36,11 @@ expect.error = "Argumento desconhecido: nonsense. Use /appleskin help."
 
 [[step]]
 command = "appleskin overlay"
-expect.feedback = "Sobreposição da barra de fome desligada (painel de texto)."
+expect.feedback = "Prévia de ícones desligada (painel de texto)."
 
 [[step]]
 command = "appleskin overlay"
-expect.feedback = "Sobreposição da barra de fome ligada."
+expect.feedback = "Prévia de ícones acima da barra ligada."
 
 [[step]]
 command = "appleskin pulse"
