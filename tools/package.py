@@ -45,6 +45,7 @@ def main() -> None:
         "sha256": sha,
         "highlights": compat.get("highlights", []),
         "limitations": compat["limitations"],
+        "overlay_assets": compat["appleskin_overlay"],
         "ci": {
             "repository": "jorginho11111/apple-skin-for-horizon",
             "workflow": "Build AppleSkin Android hmod",

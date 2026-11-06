@@ -1,7 +1,7 @@
 id = "appleskin"
 name = "AppleSkin"
-version = "0.4.1"
-description = "Prévia de fome em ícones com opacidade pulsante e ganho potencial de saturação em amarelo, em linha fixa acima da barra de fome. Horizon Android 0.7.7 / Minecraft 26.3."
+version = "0.4.2"
+description = "Prévia somente da fome restaurada, com contornos amarelos originais do AppleSkin para o ganho potencial de saturação. Opacidade pulsante em linha fixa acima da barra de fome. Horizon Android 0.7.7 / Minecraft 26.3."
 authors = ["jorginho11111", "AppleSkin contributors", "Horizon contributors"]
 api = "0.1"
 side = "client"

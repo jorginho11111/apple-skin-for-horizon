@@ -15,7 +15,7 @@ def main() -> None:
         f"# AppleSkin {v} para Horizon Android",
         "",
         "Mod `.hmod` sandboxed para o port Android oficial do Horizon (`Vasysik/horizon-android`).",
-        "Mostra uma prévia de fome em ícones, com opacidade pulsante, e o ganho potencial de saturação da comida segurada na mão principal.",
+        "Mostra somente a fome restaurada pela comida segurada na mão principal, com opacidade pulsante e contornos amarelos originais do AppleSkin para o ganho potencial de saturação.",
         "",
     ]
     if build.get("highlights"):
@@ -45,8 +45,10 @@ def main() -> None:
         "",
         "## O que a prévia mostra",
         "",
-        "- Linha de ícones/meios ícones com a fome projetada após comer, em posição fixa logo acima da barra vanilla, com **opacidade pulsante** (sem movimento).",
-        "- Faixa **amarela** sobre os ícones: ganho potencial de saturação do alimento, limitado pela fome projetada.",
+        "- Somente as carnes/meias carnes restauradas pelo alimento, em posição fixa logo acima da barra vanilla, com **opacidade pulsante** (sem movimento). A linha inteira de fome já preenchida não é repetida.",
+        "- Contornos **amarelos de carne do AppleSkin original**, não uma faixa: ganho potencial de saturação do alimento, limitado pela fome projetada.",
+        "- Com fome ímpar, o espaço parcial existente é redesenhado como cheio, além do novo ganho, seguindo a convenção do AppleSkin original.",
+        "- O amarelo começa pela direita a partir de uma base zero porque a saturação atual não está disponível; não representa a reserva real do jogador nem regeneração de vida/corações.",
         "- No Horizon v0.7.7 a prévia fica acima da barra porque o jogo desenha os ícones vanilla depois dos shapes de mods; uma sobreposição exata seria coberta.",
         "- Painel de texto opcional (`/appleskin overlay`), modo compacto e posição configurável.",
         "",
@@ -72,7 +74,7 @@ def main() -> None:
         "- Este port: MIT (`LICENSE`).",
         "- AppleSkin original: Unlicense (`LICENSE-APPLESKIN`).",
         "- SDK Horizon vendored: MIT (`third_party/horizon-mod-sdk/LICENSE`).",
-        "- Créditos e fontes: `NOTICE`.",
+        f"- Textura original: commit `{build['overlay_assets']['revision']}`; SHA-256 `{build['overlay_assets']['sha256']}`. Créditos e fontes: `NOTICE`.",
         "",
         "Projeto não oficial, sem afiliação com Mojang/Microsoft ou com o Horizon.",
     ]

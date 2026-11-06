@@ -10,6 +10,17 @@ https://github.com/squeek502/AppleSkin
 AppleSkin is dedicated to the public domain under the Unlicense;
 its notice is preserved in LICENSE-APPLESKIN.
 
+Original AppleSkin texture and rendering reference:
+Revision: 66fcdb8b12820c9b1cf3147abfdcf5530559f62b
+Texture: resources/assets/appleskin/textures/icons.png
+Vendored unchanged: third_party/appleskin/icons.png
+SHA-256: 6301a0b572f0e4bf84b5ac82ee83352e2e6f953397f8ab487c6a5268fac9bd3d
+License: Unlicense, preserved in third_party/appleskin/LICENSE.
+tools/generate_saturation_icons.py extracts the first four 9x9 yellow outlines
+into src/saturation_icons.rs without changing their opaque pixels or colors.
+The hunger-gain selection and saturation thresholds follow the original
+java/squeek/appleskin/client/HUDOverlayHandler.java at that revision.
+
 The Android .hmod port uses the official Horizon Android mod SDK and WIT
 contract from Vasysik/horizon-android, vendored under third_party/horizon-mod-sdk:
 https://github.com/Vasysik/horizon-android
@@ -25,9 +36,11 @@ Path: item_components/data.json
 The extracted, pinned subset is food-data/foods-26.3.json.
 
 Local changes: Android .hmod WebAssembly component, main-hand food preview,
-projected hunger, food saturation gain, compatible fixed-row icon preview
-above the hunger bar with opacity-only pulse, yellow potential-saturation
-highlight, sandbox tests,
-pinned SDK, generated food table, versioned packaging, GitHub Actions and
-PT-BR release reports.
+gain-only restored hunger, original yellow saturation-gain outlines, compatible
+fixed-row preview above the hunger bar with opacity-only pulse, sandbox tests,
+pinned SDK, generated food/icon tables, versioned packaging, GitHub Actions and
+PT-BR release reports. Current saturation is unavailable through API 0.1, so
+yellow gain is right-aligned from an assumed zero baseline, not a measurement
+of the player's actual saturation. This is hunger restoration, not estimated
+health regeneration.
 This project is not an official AppleSkin, Horizon, Mojang or Microsoft release.
