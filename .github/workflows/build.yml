@@ -2,7 +2,7 @@ name: Build AppleSkin Android hmod
 
 on:
   push:
-    branches: ["arena/57ec9556-apple-skin-for-horizon", main]
+    branches: ["arena/f8f67213-apple-skin-for-horizon", main]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -122,24 +122,36 @@ jobs:
       - name: Verify final archive
         run: |
           python3 - <<'PY'
-          import json, tomllib, zipfile
+          import hashlib, json, tomllib, zipfile
           from pathlib import Path
-          path, = Path("target/release").glob("appleskin-*-android.hmod")
+          version = json.loads(Path("compatibility.json").read_text())["mod_version"]
+          path = Path("target/release") / f"appleskin-{version}-android.hmod"
+          assert path.is_file(), f"missing exact-version package: {path}"
+          expected_files = {path.name, f"{path.name}.sha256"}
+          actual_files = {p.name for p in path.parent.iterdir()}
+          assert actual_files == expected_files, f"stale or missing release files: {actual_files}"
           with zipfile.ZipFile(path) as z:
-              assert z.testzip() is None
-              names = z.namelist()
-              assert names == ["horizon-mod.toml", "mod.wasm"], names
-              manifest = tomllib.loads(z.read("horizon-mod.toml").decode())
-              assert manifest["id"] == "appleskin"
-              assert manifest["api"] == "0.1"
-              assert manifest["version"] == json.loads(Path("compatibility.json").read_text())["mod_version"]
-              wasm = z.read("mod.wasm")
-              assert wasm[:4] == b"\x00asm"
-              assert len(wasm) < 32 * 1024 * 1024
+            assert z.testzip() is None
+            names = z.namelist()
+            assert names == ["horizon-mod.toml", "mod.wasm"], names
+            manifest = tomllib.loads(z.read("horizon-mod.toml").decode())
+            assert manifest["id"] == "appleskin"
+            assert manifest["api"] == "0.1"
+            assert manifest["version"] == version
+            wasm = z.read("mod.wasm")
+            assert wasm[:4] == b"\x00asm"
+            assert len(wasm) < 32 * 1024 * 1024
+          sha = hashlib.sha256(path.read_bytes()).hexdigest()
+          checksum_file = path.with_name(f"{path.name}.sha256")
+          assert checksum_file.read_text() == f"{sha}  {path.name}\n"
           report = json.loads(Path("target/report/build.json").read_text())
           assert report["format"] == "hmod"
           assert report["platform"] == "android"
-          print(path, len(wasm), report["sha256"])
+          assert report["mod_version"] == version
+          assert report["artifact"] == path.name
+          assert report["size_bytes"] == path.stat().st_size
+          assert report["sha256"] == sha
+          print(path, len(wasm), sha)
           PY
 
       - uses: actions/upload-artifact@v4

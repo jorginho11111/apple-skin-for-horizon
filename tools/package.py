@@ -10,11 +10,17 @@ def main() -> None:
     manifest = tomllib.loads((ROOT / "horizon-mod.toml").read_text())
     compat = json.loads((ROOT / "compatibility.json").read_text())
     version = manifest["version"]
+    if version != compat["mod_version"]:
+        raise SystemExit("horizon-mod.toml and compatibility.json disagree on mod version")
     src = ROOT / "target/horizon-mod/appleskin.hmod"
     if not src.is_file():
         raise SystemExit("missing target/horizon-mod/appleskin.hmod; run cargo horizon-mod build first")
     release = ROOT / "target/release"
     report = ROOT / "target/report"
+    # actions/cache restores target/ across versions. Never upload stale
+    # .hmod/.sha256 files alongside the package built from this commit.
+    if release.exists():
+        shutil.rmtree(release)
     release.mkdir(parents=True, exist_ok=True)
     report.mkdir(parents=True, exist_ok=True)
     out = release / f"appleskin-{version}-android.hmod"
@@ -33,6 +39,7 @@ def main() -> None:
         "rust": compat["rust"],
         "wasm_target": compat["wasm_target"],
         "supported_apk_architectures": compat["supported_apk_architectures"],
+        "minimum_android": compat["minimum_android"],
         "artifact": out.name,
         "size_bytes": out.stat().st_size,
         "sha256": sha,
