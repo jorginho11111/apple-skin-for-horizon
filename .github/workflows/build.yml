@@ -79,7 +79,11 @@ jobs:
               print(f"::{msg['level']} file={file},line={line_no}::{text}")
           err = Path("target/report/clippy.stderr").read_text()
           if err.strip():
-              print(err[-4000:])
+              tail = err[-6000:]
+              print(tail)
+              for chunk in [tail[i:i+900] for i in range(0, len(tail), 900)]:
+                  safe = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error file=Cargo.toml,line=1::{safe}")
           PY
           exit "$status"
 
