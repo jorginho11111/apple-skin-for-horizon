@@ -1,7 +1,8 @@
 name: Temporary Rust formatting
 
 on:
-  workflow_dispatch:
+  push:
+    branches: ["arena/b6080a1e-apple-skin-for-horizon"]
 
 permissions:
   contents: write
