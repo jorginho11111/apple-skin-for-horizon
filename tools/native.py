@@ -124,6 +124,9 @@ def source(repo: str, revision: str, destination: Path) -> Path:
         return destination
     log(f"Downloading {repo}@{revision[:12]}")
     extract(get(f"https://codeload.github.com/{repo}/tar.gz/{revision}"), destination)
+    # A codeload archive has no .git. Without this marker the mixin tool walks up
+    # to the mod repository's git HEAD and rejects the Horizon pin (E_REVISION).
+    (destination / ".horizon-revision").write_text(revision + "\n")
     # Horizon has documentation symlinks; the mixin tool refuses links in a workspace.
     for path in destination.rglob("*"):
         if path.is_symlink():

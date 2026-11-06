@@ -27,22 +27,28 @@ jobs:
     name: Tests and package
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
         run: |
           rustup toolchain install "$RUST" --profile minimal --component rustfmt --component clippy
           rustup default "$RUST"
-      - name: Check Rust formatting
+      - name: Format Rust
+        run: cargo fmt
+      - name: Persist CI formatting
+        if: github.event_name == 'push'
         run: |
-          if ! cargo fmt --check > /tmp/rustfmt.log 2>&1; then
-            python3 - <<'PY'
-            from pathlib import Path
-            text = Path('/tmp/rustfmt.log').read_text()[-30000:]
-            print('::error::' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-            PY
-            exit 1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mixins/appleskin/runtime.rs
+          if ! git diff --cached --quiet; then
+            git commit -m "Format Rust sources [skip ci]"
+            git push origin HEAD:arena/a6ac48fb-apple-skin-for-horizon
           fi
+      - name: Check Rust formatting
+        run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
       - run: python3 -m unittest discover -s tests -v
