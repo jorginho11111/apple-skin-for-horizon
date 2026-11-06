@@ -26,7 +26,7 @@ const TOGGLE_BUTTON: u32 = 1;
 const COMPACT_BUTTON: u32 = 2;
 const POSITION_BUTTON: u32 = 3;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Position {
     HungerBar,
     TopLeft,
