@@ -241,7 +241,11 @@ mod tests {
     fn partial_saturation_uses_the_original_three_quarter_outline() {
         let icons = potential_saturation_icons(96, 20, 304.0, 191.0);
         assert_eq!(icons.len(), 5);
-        assert!(icons[..4].iter().all(|i| i.kind == SaturationIconKind::Full));
+        assert!(
+            icons[..4]
+                .iter()
+                .all(|i| i.kind == SaturationIconKind::Full)
+        );
         assert_eq!(icons[4].kind, SaturationIconKind::ThreeQuarter);
         assert_eq!(icons[4].x, 304.0 - 4.0 * 8.0 - 9.0);
     }
@@ -249,10 +253,7 @@ mod tests {
     #[test]
     fn yellow_icons_can_show_saturation_only_when_hunger_is_full() {
         assert!(restored_icons(20, 20, 304.0, 191.0).is_empty());
-        assert_eq!(
-            potential_saturation_icons(96, 20, 304.0, 191.0).len(),
-            5
-        );
+        assert_eq!(potential_saturation_icons(96, 20, 304.0, 191.0).len(), 5);
         assert!(potential_saturation_icons(0, 20, 304.0, 191.0).is_empty());
         assert!(potential_saturation_icons(96, 0, 304.0, 191.0).is_empty());
     }
@@ -276,7 +277,10 @@ mod tests {
                 pixels
             })
             .collect();
-        let run_counts: Vec<usize> = saturation_icons::ICONS.iter().map(|runs| runs.len()).collect();
+        let run_counts: Vec<usize> = saturation_icons::ICONS
+            .iter()
+            .map(|runs| runs.len())
+            .collect();
         assert_eq!(run_counts, [7, 11, 12, 16]);
         let pixel_counts: Vec<usize> = masks.iter().map(HashSet::len).collect();
         assert_eq!(pixel_counts, [9, 14, 17, 21]);
@@ -314,7 +318,10 @@ mod tests {
         let hunger = restored_icons(0, 20, 304.0, 191.0);
         let saturation = potential_saturation_icons(200, 20, 304.0, 191.0);
         let shapes = hunger.len() * 2
-            + saturation.iter().map(|i| i.kind.runs().len()).sum::<usize>();
+            + saturation
+                .iter()
+                .map(|i| i.kind.runs().len())
+                .sum::<usize>();
         assert_eq!(shapes, 180);
         assert!(shapes <= MAX_SHAPES && shapes < 1024);
     }
