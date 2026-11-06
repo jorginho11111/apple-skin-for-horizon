@@ -206,7 +206,8 @@ impl AppleSkin {
                 color: (u32::from(alpha) << 24) | 0x00FF_FFFF,
             }));
         }
-        for rect in overlay::saturation_rects(p.saturation_gain_tenths, p.hunger_after, x_right, y) {
+        for rect in overlay::saturation_rects(p.saturation_gain_tenths, p.hunger_after, x_right, y)
+        {
             shapes.push(Shape::Fill(FillShape {
                 rect: Rect {
                     x: rect.x,
