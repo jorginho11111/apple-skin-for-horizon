@@ -14,7 +14,7 @@ use horizon_mod_sdk::{
     storage,
     ui::{self, ButtonWidget, TextWidget, Widget},
 };
-use preview::{FoodInfo, Preview};
+use preview::Preview;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BG: u32 = 0xB0_10_10_10;
@@ -391,6 +391,7 @@ horizon_mod_sdk::export_mod!(AppleSkin);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use preview::FoodInfo;
 
     #[test]
     fn vanilla_foods_are_present() {

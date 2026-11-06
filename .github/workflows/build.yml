@@ -54,10 +54,46 @@ jobs:
         run: cargo fmt --check
 
       - name: Clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: |
+          mkdir -p target/report
+          status=0
+          cargo clippy --all-targets --locked --message-format=json -- -D warnings > target/report/clippy.json 2> target/report/clippy.stderr || status=$?
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for line in Path("target/report/clippy.json").read_text().splitlines():
+              try:
+                  m = json.loads(line)
+              except Exception:
+                  continue
+              if m.get("reason") != "compiler-message":
+                  continue
+              msg = m.get("message", {})
+              if msg.get("level") not in ("error", "warning"):
+                  continue
+              text = msg.get("message", "")
+              spans = msg.get("spans") or []
+              span = next((s for s in spans if s.get("is_primary")), spans[0] if spans else {})
+              file = span.get("file_name", ".github")
+              line_no = span.get("line_start", 1)
+              print(f"::{msg['level']} file={file},line={line_no}::{text}")
+          err = Path("target/report/clippy.stderr").read_text()
+          if err.strip():
+              print(err[-4000:])
+          PY
+          exit "$status"
 
       - name: Host tests
         run: cargo test --locked
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hmod-diagnostics
+          path: target/report/*
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Install official Horizon mod tool
         run: |
