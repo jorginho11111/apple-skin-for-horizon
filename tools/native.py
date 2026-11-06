@@ -140,7 +140,12 @@ def run(args: list[str], cwd: Path | None = None) -> None:
     if result.stdout:
         print(result.stdout, end="", flush=True)
     if result.returncode:
-        tail = (result.stdout or "")[-30000:]
+        TARGET.mkdir(exist_ok=True)
+        (TARGET / "failed-command.log").write_text(result.stdout or "")
+        lines = [line for line in (result.stdout or "").splitlines()
+                 if line.lstrip().startswith(("error", "warning:", "Caused by:", "help:", "note:"))
+                 or "error[" in line or "error:" in line]
+        tail = "\n".join(lines[-80:]) or (result.stdout or "")[-12000:]
         print("::error::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
         raise subprocess.CalledProcessError(result.returncode, args)
 
@@ -195,7 +200,12 @@ def check(horizon: str | None, build: bool) -> None:
     if result.stdout:
         print(result.stdout, end="", flush=True)
     if result.returncode:
-        tail = (result.stdout or "")[-30000:]
+        TARGET.mkdir(exist_ok=True)
+        (TARGET / "failed-command.log").write_text(result.stdout or "")
+        lines = [line for line in (result.stdout or "").splitlines()
+                 if line.lstrip().startswith(("error", "warning:", "Caused by:", "help:", "note:"))
+                 or "error[" in line or "error:" in line]
+        tail = "\n".join(lines[-80:]) or (result.stdout or "")[-12000:]
         print("::error::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
         raise subprocess.CalledProcessError(result.returncode, command)
     report = {"mod": "appleskin", "horizon": revision, "hooks_api": api,

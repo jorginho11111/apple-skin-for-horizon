@@ -117,8 +117,11 @@ jobs:
         run: |
           python3 tools/native.py check ${HORIZON_INPUT:+--horizon "$HORIZON_INPUT"}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: horizon-compile-report
-          path: target/compile-report.json
-          if-no-files-found: error
+          path: |
+            target/compile-report.json
+            target/failed-command.log
+          if-no-files-found: ignore
           retention-days: 30
