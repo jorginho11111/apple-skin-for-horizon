@@ -4,7 +4,7 @@ expect.commands = ["appleskin"]
 
 [[step]]
 command = "appleskin help"
-expect.feedback = "Comandos: /appleskin [toggle|status|compact|position|help]."
+expect.feedback = "Comandos: /appleskin [toggle|overlay|pulse|status|compact|position|help]."
 
 [[step]]
 command = "appleskin status"
@@ -33,3 +33,19 @@ expect.feedback = "Posição: Canto superior esquerdo"
 [[step]]
 command = "appleskin nonsense"
 expect.error = "Argumento desconhecido: nonsense. Use /appleskin help."
+
+[[step]]
+command = "appleskin overlay"
+expect.feedback = "Sobreposição da barra de fome desligada (painel de texto)."
+
+[[step]]
+command = "appleskin overlay"
+expect.feedback = "Sobreposição da barra de fome ligada."
+
+[[step]]
+command = "appleskin pulse"
+expect.feedback = "Pulsação de opacidade desligada."
+
+[[step]]
+command = "appleskin pulse"
+expect.feedback = "Pulsação de opacidade ligada."
