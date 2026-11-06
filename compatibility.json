@@ -1,5 +1,5 @@
 {
-  "mod_version": "0.3.0",
+  "mod_version": "0.4.0",
   "game": "26.3",
   "platform": "android",
   "package_format": "hmod",
@@ -15,7 +15,10 @@
   },
   "rust": "1.95.0",
   "wasm_target": "wasm32-unknown-unknown",
-  "supported_apk_architectures": ["arm64-v8a", "x86_64"],
+  "supported_apk_architectures": [
+    "arm64-v8a",
+    "x86_64"
+  ],
   "minimum_android": "9 / API 28",
   "food_data": {
     "repository": "https://github.com/misode/mcmeta",
@@ -26,7 +29,8 @@
   },
   "limitations": [
     "A API 0.1 do Horizon Android expõe a fome atual, mas não a saturação atual, a exaustão, a mão secundária nem o modo de jogo.",
-    "A prévia usa a comida da mão principal e mostra a fome projetada e o ganho de saturação do alimento; não desenha a barra de saturação atual nem a exaustão.",
+    "A faixa amarela é o ganho potencial de saturação do alimento segurado, limitado pela fome projetada; não é a saturação atual do jogador.",
+    "A sobreposição usa a posição vanilla da barra de fome; em veículo, modo criativo ou com outro mod alterando o HUD, ela pode ficar sobre uma área onde a barra não está visível.",
     "Apenas alimentos vanilla de Minecraft 26.3 presentes em food-data/foods-26.3.json são reconhecidos; itens de outros mods não têm valores nutricionais expostos pela API.",
     "As capacidades input, render e ui são experimentais na API 0.1 e podem mudar em versões futuras do Horizon.",
     "O pacote foi validado em CI e no sandbox de mods; teste em aparelho Android real ainda é necessário."

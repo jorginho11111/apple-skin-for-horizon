@@ -1,16 +1,21 @@
 //! AppleSkin for Horizon Android (`.hmod`, sandboxed WebAssembly component).
 //!
 //! Reads the local player's hunger and the main-hand stack through the official
-//! Horizon Android mod API, then draws a small preview panel near the hunger
-//! bar. The API does not expose current saturation/exhaustion or the off hand,
-//! so the panel shows projected hunger and the held food's saturation gain.
+//! Horizon Android mod API. By default it overlays predicted hunger icons on
+//! the vanilla food row (opacity-only pulse) and draws the held food's
+//! potential saturation gain in yellow. A text panel remains available.
+//!
+//! The API does not expose current saturation/exhaustion, the off hand, or the
+//! game mode, so the yellow overlay is the food's potential gain, not the
+//! player's current saturation.
 
 mod foods;
+mod overlay;
 mod preview;
 
 use horizon_mod_sdk::{
     Mod, Registration, game, input,
-    render::{self, FillShape, ItemShape, Point, Rect, Shape, TextShape},
+    render::{self, FillShape, ItemShape, Point, Rect, Shape, SpriteShape, TextShape},
     storage,
     ui::{self, ButtonWidget, TextWidget, Widget},
 };
@@ -22,9 +27,19 @@ const HUNGER_COLOR: u32 = 0xFF_C8_5A;
 const SAT_COLOR: u32 = 0xFF_E0_8A;
 const TEXT_COLOR: u32 = 0xFF_FF_FF;
 
+/// Opacity-only pulse: positions never move.
+const PULSE_MIN: u8 = 48;
+const PULSE_MAX: u8 = 136;
+const PULSE_PERIOD: f32 = 1.6;
+const PULSE_OFF_ALPHA: u8 = 96;
+/// Yellow saturation overlay: potential gain of the held food.
+const SAT_OVERLAY_COLOR: u32 = 0x5A_FF_D5_4A;
+
 const TOGGLE_BUTTON: u32 = 1;
-const COMPACT_BUTTON: u32 = 2;
-const POSITION_BUTTON: u32 = 3;
+const OVERLAY_BUTTON: u32 = 2;
+const PULSE_BUTTON: u32 = 3;
+const COMPACT_BUTTON: u32 = 4;
+const POSITION_BUTTON: u32 = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Position {
@@ -59,10 +74,17 @@ impl Position {
 
 struct AppleSkin {
     enabled: bool,
+    /// Overlay the vanilla hunger bar instead of drawing a text panel.
+    overlay: bool,
+    /// Animate opacity only (no movement).
+    pulse: bool,
     compact: bool,
     position: Position,
-    /// Last drawn signature, so an unchanged panel costs no host call.
+    phase: f32,
+    /// Last drawn signature, so an unchanged frame costs no host call.
     last: String,
+    current: Option<Preview>,
+    current_item: String,
 }
 
 impl AppleSkin {
@@ -79,9 +101,14 @@ impl AppleSkin {
             .unwrap_or(Position::HungerBar);
         Self {
             enabled: bool_key("enabled", true),
+            overlay: bool_key("overlay", true),
+            pulse: bool_key("pulse", true),
             compact: bool_key("compact", false),
             position,
+            phase: 0.0,
             last: String::new(),
+            current: None,
+            current_item: String::new(),
         }
     }
 
@@ -92,6 +119,8 @@ impl AppleSkin {
             }
         };
         put("enabled", if self.enabled { "true" } else { "false" });
+        put("overlay", if self.overlay { "true" } else { "false" });
+        put("pulse", if self.pulse { "true" } else { "false" });
         put("compact", if self.compact { "true" } else { "false" });
         put("position", self.position.key());
     }
@@ -109,29 +138,91 @@ impl AppleSkin {
                 label: format!("Prévia: {}", on(self.enabled)),
             }),
             Widget::Button(ButtonWidget {
+                id: OVERLAY_BUTTON,
+                label: format!("Sobrepor barra de fome: {}", on(self.overlay)),
+            }),
+            Widget::Button(ButtonWidget {
+                id: PULSE_BUTTON,
+                label: format!("Pulsação de opacidade: {}", on(self.pulse)),
+            }),
+            Widget::Button(ButtonWidget {
                 id: COMPACT_BUTTON,
-                label: format!("Modo compacto: {}", on(self.compact)),
+                label: format!("Modo compacto (texto): {}", on(self.compact)),
             }),
             Widget::Button(ButtonWidget {
                 id: POSITION_BUTTON,
-                label: format!("Posição: {}", self.position.label()),
+                label: format!("Posição (texto): {}", self.position.label()),
             }),
             Widget::Text(TextWidget {
-                id: 4,
-                text: "A API Android não expõe saturação atual, exaustão nem mão secundária. A prévia mostra a fome projetada e o ganho de saturação do alimento segurado.".into(),
+                id: 6,
+                text: "A API Android não expõe saturação atual, exaustão nem mão secundária. O amarelo é o ganho potencial de saturação do alimento, limitado pela fome projetada.".into(),
                 color: 0xAA_AA_AA,
             }),
         ]);
     }
 
-    fn clear(&mut self) {
+    fn alpha(&self) -> u8 {
+        if self.pulse {
+            overlay::pulse_alpha(self.phase, PULSE_MIN, PULSE_MAX, PULSE_PERIOD)
+        } else {
+            PULSE_OFF_ALPHA
+        }
+    }
+
+    fn reset(&mut self) {
+        self.current = None;
+        self.current_item.clear();
         if !self.last.is_empty() {
             render::set_hud(&[]);
             self.last.clear();
         }
     }
 
-    fn draw(&mut self, item_id: &str, p: Preview) {
+    fn draw_overlay(&mut self, p: Preview) {
+        let (w, h) = render::gui_size();
+        let alpha = self.alpha();
+        let signature = format!(
+            "overlay|{}|{}|{}|{}|{:.0}x{:.0}",
+            p.hunger_before, p.hunger_after, p.saturation_gain_tenths, alpha, w, h
+        );
+        if signature == self.last {
+            return;
+        }
+        let (x_right, y) = overlay::anchor(w, h);
+        let mut shapes = Vec::new();
+        for icon in overlay::hunger_icons(p.hunger_before, p.hunger_after, x_right, y) {
+            shapes.push(Shape::Sprite(SpriteShape {
+                sprite: if icon.half {
+                    "hud/food_half".into()
+                } else {
+                    "hud/food_full".into()
+                },
+                rect: Rect {
+                    x: icon.x,
+                    y: icon.y,
+                    w: overlay::ICON,
+                    h: overlay::ICON,
+                },
+                color: (u32::from(alpha) << 24) | 0x00FF_FFFF,
+            }));
+        }
+        for rect in overlay::saturation_rects(p.saturation_gain_tenths, p.hunger_after, x_right, y)
+        {
+            shapes.push(Shape::Fill(FillShape {
+                rect: Rect {
+                    x: rect.x,
+                    y: rect.y,
+                    w: rect.w,
+                    h: overlay::ICON,
+                },
+                color: SAT_OVERLAY_COLOR,
+            }));
+        }
+        render::set_hud(&shapes);
+        self.last = signature;
+    }
+
+    fn draw_text(&mut self, item_id: &str, p: Preview) {
         let (w, h) = render::gui_size();
         let hunger_line = if p.hunger_gain > 0 {
             format!(
@@ -146,7 +237,7 @@ impl AppleSkin {
             preview::tenths_string(p.saturation_gain_tenths)
         );
         let signature = format!(
-            "{}|{}|{}|{}|{}|{:.0}x{:.0}",
+            "text|{}|{}|{}|{}|{}|{:.0}x{:.0}",
             item_id,
             p.hunger_before,
             p.hunger_after,
@@ -285,31 +376,54 @@ impl Mod for AppleSkin {
     fn init() -> Result<(Self, Registration), String> {
         let skin = Self::load();
         skin.page();
-        Ok((skin, Registration::new().command("appleskin").on_tick()))
+        Ok((
+            skin,
+            Registration::new()
+                .command("appleskin")
+                .on_tick()
+                .on_frame(),
+        ))
     }
 
     fn tick(&mut self, _tick: u64) {
         if !self.enabled {
-            self.clear();
+            self.reset();
             return;
         }
         let Some(player) = game::get_player() else {
-            self.clear();
+            self.reset();
             return;
         };
         let Some(held) = input::held().filter(|h| h.count > 0 && h.slot < 9) else {
-            self.clear();
+            self.reset();
             return;
         };
         let Some(food) = foods::lookup(&held.id) else {
-            self.clear();
+            self.reset();
             return;
         };
         let Some(p) = preview::compute(player.food, held.count, food) else {
-            self.clear();
+            self.reset();
             return;
         };
-        self.draw(&held.id, p);
+        self.current = Some(p);
+        self.current_item = held.id;
+        if self.overlay {
+            self.draw_overlay(p);
+        } else {
+            let item = self.current_item.clone();
+            self.draw_text(&item, p);
+        }
+    }
+
+    fn frame(&mut self, seconds: f32) {
+        if !self.enabled || !self.overlay || !self.pulse {
+            return;
+        }
+        self.phase += seconds.max(0.0);
+        if let Some(p) = self.current {
+            self.draw_overlay(p);
+        }
     }
 
     fn command(&mut self, name: &str, args: &str) -> Result<Option<String>, String> {
@@ -320,12 +434,38 @@ impl Mod for AppleSkin {
             "" | "toggle" => {
                 self.enabled = !self.enabled;
                 self.save();
-                self.clear();
+                self.reset();
                 Ok(Some(
                     if self.enabled {
                         "AppleSkin ligado."
                     } else {
                         "AppleSkin desligado."
+                    }
+                    .into(),
+                ))
+            }
+            "overlay" => {
+                self.overlay = !self.overlay;
+                self.save();
+                self.last.clear();
+                Ok(Some(
+                    if self.overlay {
+                        "Sobreposição da barra de fome ligada."
+                    } else {
+                        "Sobreposição da barra de fome desligada (painel de texto)."
+                    }
+                    .into(),
+                ))
+            }
+            "pulse" => {
+                self.pulse = !self.pulse;
+                self.save();
+                self.last.clear();
+                Ok(Some(
+                    if self.pulse {
+                        "Pulsação de opacidade ligada."
+                    } else {
+                        "Pulsação de opacidade desligada."
                     }
                     .into(),
                 ))
@@ -355,7 +495,7 @@ impl Mod for AppleSkin {
             }
             "status" => Ok(Some(self.status())),
             "help" => Ok(Some(
-                "Comandos: /appleskin [toggle|status|compact|position|help].".into(),
+                "Comandos: /appleskin [toggle|overlay|pulse|status|compact|position|help].".into(),
             )),
             other => Err(format!(
                 "Argumento desconhecido: {other}. Use /appleskin help."
@@ -366,6 +506,8 @@ impl Mod for AppleSkin {
     fn ui_select(&mut self, id: u32, _row: u32) {
         match id {
             TOGGLE_BUTTON => self.enabled = !self.enabled,
+            OVERLAY_BUTTON => self.overlay = !self.overlay,
+            PULSE_BUTTON => self.pulse = !self.pulse,
             COMPACT_BUTTON => self.compact = !self.compact,
             POSITION_BUTTON => {
                 let idx = Position::ALL
@@ -378,7 +520,7 @@ impl Mod for AppleSkin {
         }
         self.save();
         self.page();
-        self.clear();
+        self.reset();
     }
 
     fn ui_settings_opened(&mut self) {

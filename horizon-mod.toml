@@ -1,7 +1,7 @@
 id = "appleskin"
 name = "AppleSkin"
-version = "0.3.0"
-description = "Previsão de fome e saturação com base na comida segurada na mão principal. Feito para Horizon Android 0.7.7 / Minecraft 26.3."
+version = "0.4.0"
+description = "Sobrepõe ícones de fome previstos (opacidade pulsante) e ganho potencial de saturação em amarelo na barra de fome. Horizon Android 0.7.7 / Minecraft 26.3."
 authors = ["jorginho11111", "AppleSkin contributors", "Horizon contributors"]
 api = "0.1"
 side = "client"

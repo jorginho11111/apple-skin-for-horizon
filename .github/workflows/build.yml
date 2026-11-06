@@ -2,12 +2,12 @@ name: Build AppleSkin Android hmod
 
 on:
   push:
-    branches: ["arena/b6080a1e-apple-skin-for-horizon", main]
+    branches: ["arena/57ec9556-apple-skin-for-horizon", main]
   pull_request:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Publicar/atualizar a Release v0.3.0 a partir deste commit"
+        description: "Publicar/atualizar a Release versionada a partir deste commit"
         type: boolean
         default: false
 
@@ -132,7 +132,7 @@ jobs:
               manifest = tomllib.loads(z.read("horizon-mod.toml").decode())
               assert manifest["id"] == "appleskin"
               assert manifest["api"] == "0.1"
-              assert manifest["version"] == "0.3.0"
+              assert manifest["version"] == json.loads(Path("compatibility.json").read_text())["mod_version"]
               wasm = z.read("mod.wasm")
               assert wasm[:4] == b"\x00asm"
               assert len(wasm) < 32 * 1024 * 1024

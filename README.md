@@ -14,20 +14,25 @@ Port de AppleSkin como **`.hmod`** para o port Android oficial do Horizon:
 
 ## O que ele faz
 
-Quando você segura uma comida na **mão principal**, o mod desenha uma prévia:
+Quando você segura uma comida na **mão principal**, o mod sobrepõe a barra de
+fome vanilla:
 
-- fome atual → fome após comer, limitada a 20;
-- ganho de saturação do alimento segurado;
-- ícone do alimento;
-- modo compacto e posição configurável.
+- desenha os ícones/meios ícones de fome que você ganharia ao comer, por cima
+  dos atuais, com **opacidade baixa pulsante** — só a opacidade aumenta e
+  diminui; os ícones **não se movem**;
+- desenha uma faixa **amarela** por cima: o **ganho potencial de saturação**
+  do alimento, limitado pela fome projetada;
+- mantém um painel de texto opcional, com modo compacto e posição configurável.
 
 Comandos:
 
 ```text
 /appleskin              liga/desliga
+/appleskin overlay      alterna sobreposição da barra / painel de texto
+/appleskin pulse        alterna pulsação de opacidade
 /appleskin status       mostra a prévia atual no chat
-/appleskin compact      alterna modo compacto
-/appleskin position     alterna posição
+/appleskin compact      alterna modo compacto (texto)
+/appleskin position     alterna posição (texto)
 /appleskin help         ajuda
 ```
 
@@ -43,8 +48,10 @@ principal, mas **não** expõe:
 - mão secundária;
 - modo de jogo.
 
-Por isso este port mostra a **fome projetada** e o **ganho de saturação do
-alimento**, não a barra de saturação atual nem a exaustão. Apenas alimentos
+Por isso a faixa amarela é o **ganho potencial de saturação do alimento**, não
+a reserva real de saturação do jogador. A sobreposição usa a posição vanilla da
+barra de fome; em veículo, modo criativo ou com outro mod alterando o HUD, ela
+pode ficar sobre uma área onde a barra não está visível. Apenas alimentos
 vanilla de Minecraft 26.3 presentes em [`food-data/foods-26.3.json`](food-data/foods-26.3.json)
 são reconhecidos. As capacidades `input`, `render` e `ui` são experimentais na
 API `0.1`.
@@ -106,6 +113,7 @@ publicada automaticamente; o erro fica no GitHub Actions.
 ```text
 horizon-mod.toml              manifesto .hmod (API 0.1, client)
 src/lib.rs                    mod Rust: HUD, comandos, configurações
+src/overlay.rs                geometria da barra e pulsação de opacidade + testes
 src/preview.rs                matemática pura da prévia + testes
 src/foods.rs                  tabela gerada de alimentos vanilla 26.3
 food-data/foods-26.3.json     dados nutricionais pinados do mcmeta 26.3
