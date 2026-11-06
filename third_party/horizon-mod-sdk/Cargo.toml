@@ -1,0 +1,17 @@
+[package]
+name = "horizon-mod-sdk"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+description = "Vendored Horizon Android mod SDK (WIT contract and Rust bindings) pinned to Vasysik/horizon-android v0.7.7."
+publish = false
+
+[dependencies]
+wit-bindgen = { version = "0.60.0", default-features = false, features = ["macros", "realloc"] }
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+needless_range_loop = "allow"
+large_enum_variant = "allow"

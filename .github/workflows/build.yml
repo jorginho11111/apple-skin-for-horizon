@@ -1,124 +1,191 @@
-name: Build AppleSkin native
+name: Build AppleSkin Android hmod
 
 on:
   push:
-    branches: ["arena/a6ac48fb-apple-skin-for-horizon", main]
+    branches: ["arena/b6080a1e-apple-skin-for-horizon", main]
   pull_request:
   workflow_dispatch:
     inputs:
-      horizon:
-        description: "Horizon commit/tag, latest, or empty for the tested pin"
-        required: false
-        default: ""
+      publish_release:
+        description: "Publicar/atualizar a Release v0.3.0 a partir deste commit"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: hmod-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  RUST: "1.99.1"
+  RUST: "1.95.0"
   CARGO_TERM_COLOR: always
+  HORIZON_ANDROID_REVISION: "80700a6f26afe53a368032d8b28bd364f7c3e7e4"
 
 jobs:
-  tests:
-    name: Tests and package
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        run: |
-          rustup toolchain install "$RUST" --profile minimal --component rustfmt --component clippy
-          rustup default "$RUST"
-      - name: Format Rust
-        run: cargo fmt
-      - name: Persist CI formatting
-        if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mixins/appleskin/runtime.rs
-          if ! git diff --cached --quiet; then
-            git commit -m "Format Rust sources [skip ci]"
-            git push origin HEAD:arena/a6ac48fb-apple-skin-for-horizon
-          fi
-      - name: Check Rust formatting
-        run: cargo fmt --check
-      - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
-      - run: python3 -m unittest discover -s tests -v
-      - name: Package native mod
-        run: python3 tools/native.py package
-      - name: Verify archive
-        run: |
-          python3 - <<'PY'
-          import json, zipfile
-          from pathlib import Path
-          path, = Path("target").glob("appleskin-*.hnmod")
-          with zipfile.ZipFile(path) as z:
-              assert z.testzip() is None
-              names = z.namelist()
-              assert len(names) == len(set(names))
-              manifest = json.loads(z.read("horizon-native.json"))
-              assert manifest["id"] == "appleskin"
-              assert manifest["game"] == "26.3"
-              assert manifest["hooks"] >= 139
-              assert "mixins/appleskin/horizon-mixin.toml" in names
-              assert "mixins/appleskin/LICENSE" in names
-              assert "mixins/appleskin/LICENSE-APPLESKIN" in names
-              assert all(n == "horizon-native.json" or n.startswith("mixins/appleskin/") for n in names)
-              print(path, manifest)
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appleskin-native
-          path: |
-            target/appleskin-*.hnmod
-            target/appleskin-*.hnmod.sha256
-          if-no-files-found: error
-          retention-days: 30
-
-  compile:
-    name: Compile into Horizon
+  build:
+    name: Test, build and check .hmod
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Rust
         run: |
-          rustup toolchain install "$RUST" --profile minimal
+          rustup toolchain install "$RUST" --profile minimal --component rustfmt --component clippy --target wasm32-unknown-unknown
           rustup default "$RUST"
-      - name: Install game build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
-      - name: Cache Horizon dependencies
+
+      - name: Cache Cargo
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            target/cargo
-            target/horizon-mixins
-          key: horizon-${{ env.RUST }}-${{ hashFiles('compatibility.json') }}-${{ github.run_id }}
-          restore-keys: |
-            horizon-${{ env.RUST }}-${{ hashFiles('compatibility.json') }}-
-      - name: Apply mixins and compile horizon-client
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          HORIZON_INPUT: ${{ inputs.horizon || '' }}
-          CARGO_BUILD_JOBS: "2"
+            target
+          key: hmod-${{ env.RUST }}-${{ hashFiles('Cargo.lock', 'compatibility.json') }}
+          restore-keys: hmod-${{ env.RUST }}-
+
+      - name: Python tests
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Rust formatting
+        run: cargo fmt --check
+
+      - name: Clippy
         run: |
-          python3 tools/native.py check ${HORIZON_INPUT:+--horizon "$HORIZON_INPUT"}
+          mkdir -p target/report
+          status=0
+          cargo clippy --all-targets --locked --message-format=json -- -D warnings > target/report/clippy.json 2> target/report/clippy.stderr || status=$?
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          for line in Path("target/report/clippy.json").read_text().splitlines():
+              try:
+                  m = json.loads(line)
+              except Exception:
+                  continue
+              if m.get("reason") != "compiler-message":
+                  continue
+              msg = m.get("message", {})
+              if msg.get("level") not in ("error", "warning"):
+                  continue
+              text = msg.get("message", "")
+              spans = msg.get("spans") or []
+              span = next((s for s in spans if s.get("is_primary")), spans[0] if spans else {})
+              file = span.get("file_name", ".github")
+              line_no = span.get("line_start", 1)
+              print(f"::{msg['level']} file={file},line={line_no}::{text}")
+          err = Path("target/report/clippy.stderr").read_text()
+          if err.strip():
+              tail = err[-6000:]
+              print(tail)
+              for chunk in [tail[i:i+900] for i in range(0, len(tail), 900)]:
+                  safe = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error file=Cargo.toml,line=1::{safe}")
+          PY
+          exit "$status"
+
+      - name: Host tests
+        run: cargo test --locked
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hmod-diagnostics
+          path: target/report/*
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Install official Horizon mod tool
+        run: |
+          cargo install --git https://github.com/Vasysik/horizon-android --rev "$HORIZON_ANDROID_REVISION" cargo-horizon-mod --locked
+
+      - name: Build WebAssembly component and .hmod
+        run: cargo horizon-mod build
+
+      - name: Official registry check and sandbox trial
+        run: |
+          mkdir -p target/report
+          cargo horizon-mod check target/horizon-mod/appleskin.hmod --json | tee target/report/check.json
+
+      - name: Official sandbox scripts
+        run: cargo horizon-mod test --hmod target/horizon-mod/appleskin.hmod
+
+      - name: Package release files and build report
+        run: python3 tools/package.py
+
+      - name: Verify final archive
+        run: |
+          python3 - <<'PY'
+          import json, tomllib, zipfile
+          from pathlib import Path
+          path, = Path("target/release").glob("appleskin-*-android.hmod")
+          with zipfile.ZipFile(path) as z:
+              assert z.testzip() is None
+              names = z.namelist()
+              assert names == ["horizon-mod.toml", "mod.wasm"], names
+              manifest = tomllib.loads(z.read("horizon-mod.toml").decode())
+              assert manifest["id"] == "appleskin"
+              assert manifest["api"] == "0.1"
+              assert manifest["version"] == "0.3.0"
+              wasm = z.read("mod.wasm")
+              assert wasm[:4] == b"\x00asm"
+              assert len(wasm) < 32 * 1024 * 1024
+          report = json.loads(Path("target/report/build.json").read_text())
+          assert report["format"] == "hmod"
+          assert report["platform"] == "android"
+          print(path, len(wasm), report["sha256"])
+          PY
+
       - uses: actions/upload-artifact@v4
         with:
-          name: horizon-compile-report
-          path: target/compile-report.json
+          name: appleskin-android-hmod
+          path: |
+            target/release/*
+            target/report/*
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.publish_release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: appleskin-android-hmod
+          path: artifact
+
+      - name: Generate release notes
+        run: python3 tools/release_notes.py artifact/report/build.json artifact/release/RELATORIO.md
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("horizon-mod.toml","rb"))["version"])')
+          TAG="v$VERSION"
+          TITLE="AppleSkin $VERSION para Horizon Android"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes-file artifact/release/RELATORIO.md --latest
+          else
+            gh release edit "$TAG" --title "$TITLE" --notes-file artifact/release/RELATORIO.md
+          fi
+          gh release upload "$TAG" \
+            artifact/release/appleskin-*-android.hmod \
+            artifact/release/appleskin-*-android.hmod.sha256 \
+            artifact/release/RELATORIO.md \
+            artifact/report/build.json \
+            artifact/report/check.json \
+            LICENSE LICENSE-APPLESKIN NOTICE \
+            --clobber

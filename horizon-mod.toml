@@ -1,0 +1,9 @@
+id = "appleskin"
+name = "AppleSkin"
+version = "0.3.0"
+description = "Previsão de fome e saturação com base na comida segurada na mão principal. Feito para Horizon Android 0.7.7 / Minecraft 26.3."
+authors = ["jorginho11111", "AppleSkin contributors", "Horizon contributors"]
+api = "0.1"
+side = "client"
+capabilities = ["game-read", "input", "render", "ui", "storage"]
+experimental = ["input", "render", "ui"]

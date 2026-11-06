@@ -1,10 +1,26 @@
 [package]
-name = "horizon-mod-appleskin"
-version = "0.2.0"
+name = "appleskin-hmod"
+version = "0.3.0"
 edition = "2024"
 license = "MIT"
 publish = false
-description = "AppleSkin for Horizon: live hunger and saturation previews from the food in either hand."
+description = "AppleSkin for Horizon Android: hunger and saturation previews from the food in the main hand (.hmod)."
 
 [lib]
-path = "mixins/appleskin/runtime.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+horizon-mod-sdk = { path = "third_party/horizon-mod-sdk" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+needless_range_loop = "allow"
+large_enum_variant = "allow"
