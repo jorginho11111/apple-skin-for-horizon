@@ -133,7 +133,13 @@ def source(repo: str, revision: str, destination: Path) -> Path:
 
 def run(args: list[str], cwd: Path | None = None) -> None:
     log("+ " + " ".join(args))
-    subprocess.run(args, cwd=cwd, check=True)
+    result = subprocess.run(args, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if result.stdout:
+        print(result.stdout, end="", flush=True)
+    if result.returncode:
+        tail = (result.stdout or "")[-30000:]
+        print("::error::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
+        raise subprocess.CalledProcessError(result.returncode, args)
 
 
 def resolve(compat: dict, horizon: str | None) -> str:
@@ -181,7 +187,14 @@ def check(horizon: str | None, build: bool) -> None:
     if build:
         command += ["--profile", "fast"]
     env = dict(os.environ, CARGO_TARGET_DIR=str(TARGET / "cargo"))
-    subprocess.run(command, cwd=stage, env=env, check=True)
+    log("+ " + " ".join(command))
+    result = subprocess.run(command, cwd=stage, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if result.stdout:
+        print(result.stdout, end="", flush=True)
+    if result.returncode:
+        tail = (result.stdout or "")[-30000:]
+        print("::error::" + tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"), flush=True)
+        raise subprocess.CalledProcessError(result.returncode, command)
     report = {"mod": "appleskin", "horizon": revision, "hooks_api": api,
               "mixins": mixins_rev, "result": "build-ok" if build else "check-ok"}
     (TARGET / "compile-report.json").write_text(json.dumps(report, indent=2) + "\n")

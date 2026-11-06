@@ -33,7 +33,16 @@ jobs:
         run: |
           rustup toolchain install "$RUST" --profile minimal --component rustfmt --component clippy
           rustup default "$RUST"
-      - run: cargo fmt --check
+      - name: Check Rust formatting
+        run: |
+          if ! cargo fmt --check > /tmp/rustfmt.log 2>&1; then
+            python3 - <<'PY'
+            from pathlib import Path
+            text = Path('/tmp/rustfmt.log').read_text()[-30000:]
+            print('::error::' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+            PY
+            exit 1
+          fi
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
       - run: python3 -m unittest discover -s tests -v
