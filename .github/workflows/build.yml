@@ -58,7 +58,7 @@ jobs:
           mkdir -p target/report
           status=0
           cargo clippy --all-targets --locked --message-format=json -- -D warnings > target/report/clippy.json 2> target/report/clippy.stderr || status=$?
-          python3 - <<'PY'
+          CLIPPY_STATUS="$status" python3 - <<'PY'
           import json
           from pathlib import Path
           for line in Path("target/report/clippy.json").read_text().splitlines():
@@ -81,9 +81,11 @@ jobs:
           if err.strip():
               tail = err[-6000:]
               print(tail)
-              for chunk in [tail[i:i+900] for i in range(0, len(tail), 900)]:
-                  safe = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                  print(f"::error file=Cargo.toml,line=1::{safe}")
+              import os
+              if os.environ.get("CLIPPY_STATUS", "0") != "0":
+                  for chunk in [tail[i:i+900] for i in range(0, len(tail), 900)]:
+                      safe = chunk.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                      print(f"::error file=Cargo.toml,line=1::{safe}")
           PY
           exit "$status"
 
