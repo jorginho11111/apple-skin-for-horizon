@@ -25,8 +25,9 @@ Path: item_components/data.json
 The extracted, pinned subset is food-data/foods-26.3.json.
 
 Local changes: Android .hmod WebAssembly component, main-hand food preview,
-projected hunger, food saturation gain, hunger-bar icon overlay with
-opacity-only pulse, yellow potential-saturation overlay, sandbox tests,
+projected hunger, food saturation gain, compatible fixed-row icon preview
+above the hunger bar with opacity-only pulse, yellow potential-saturation
+highlight, sandbox tests,
 pinned SDK, generated food table, versioned packaging, GitHub Actions and
 PT-BR release reports.
 This project is not an official AppleSkin, Horizon, Mojang or Microsoft release.

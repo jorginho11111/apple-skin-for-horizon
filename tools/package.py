@@ -43,6 +43,7 @@ def main() -> None:
         "artifact": out.name,
         "size_bytes": out.stat().st_size,
         "sha256": sha,
+        "highlights": compat.get("highlights", []),
         "limitations": compat["limitations"],
         "ci": {
             "repository": "jorginho11111/apple-skin-for-horizon",
