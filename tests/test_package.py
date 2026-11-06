@@ -73,6 +73,7 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(build["sha256"], sha)
         self.assertEqual(build["minimum_android"], self.compat["minimum_android"])
         self.assertEqual(build["highlights"], self.compat.get("highlights", []))
+        self.assertEqual(build["overlay_assets"], self.compat["appleskin_overlay"])
         self.assertEqual(build["ci"]["run_id"], "123456")
         self.assertEqual(build["ci"]["commit"], "a" * 40)
         self.assertTrue((self.report / "clippy.json").is_file())

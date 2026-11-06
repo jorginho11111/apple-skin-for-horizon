@@ -2,7 +2,7 @@ name: Build AppleSkin Android hmod
 
 on:
   push:
-    branches: ["arena/4949d79d-apple-skin-for-horizon", main]
+    branches: ["arena/eb13e5b2-apple-skin-for-horizon", main]
   pull_request:
   workflow_dispatch:
     inputs:

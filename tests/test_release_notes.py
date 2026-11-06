@@ -29,6 +29,7 @@ class ReleaseNotesTests(unittest.TestCase):
             "size_bytes": 1,
             "highlights": compat.get("highlights", []),
             "limitations": compat["limitations"],
+            "overlay_assets": compat["appleskin_overlay"],
             "ci": {"commit": "test", "run_id": "1", "run_url": "https://example.invalid"},
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -47,9 +48,14 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn("linha fixa logo acima da barra de fome", text)
         self.assertIn("sem movimento", text)
         self.assertIn("ganho potencial de saturação", text)
-        self.assertIn("não é a saturação atual do jogador", text)
+        self.assertIn("não mostram a saturação atual nem sua posição real na barra", text)
         self.assertIn("desenhados antes da barra de fome vanilla", text)
-        self.assertIn("teste em aparelho Android real ainda é necessário", text)
+        self.assertIn("Somente as carnes/meias carnes restauradas", text)
+        self.assertIn("Contornos **amarelos de carne do AppleSkin original**", text)
+        self.assertIn("não representa a reserva real do jogador nem regeneração de vida/corações", text)
+        self.assertIn("o novo desenho da v0.4.2 ainda precisa de confirmação visual no APK", text)
+        self.assertIn(compat["appleskin_overlay"]["sha256"], text)
+        self.assertNotIn("Faixa **amarela**", text)
 
 
 if __name__ == "__main__":

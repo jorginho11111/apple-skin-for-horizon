@@ -1,10 +1,10 @@
 //! AppleSkin for Horizon Android (`.hmod`, sandboxed WebAssembly component).
 //!
 //! Reads the local player's hunger and the main-hand stack through the official
-//! Horizon Android mod API. By default it draws a projected hunger row with
-//! an opacity-only pulse in a fixed row above the vanilla food bar, because
-//! Horizon v0.7.7 draws mod HUD shapes before the vanilla food icons. The
-//! held food's potential saturation gain is highlighted in yellow. A text
+//! Horizon Android mod API. By default it draws only the hunger icons restored
+//! by the held food, with AppleSkin's original yellow saturation outlines.
+//! The opacity-only pulse uses a fixed row above the vanilla food bar, because
+//! Horizon v0.7.7 draws mod HUD shapes before the vanilla food icons. A text
 //! panel remains available.
 //!
 //! The API does not expose current saturation/exhaustion, the off hand, or the
@@ -14,6 +14,7 @@
 mod foods;
 mod overlay;
 mod preview;
+mod saturation_icons;
 
 use horizon_mod_sdk::{
     Mod, Registration, game, input,
@@ -34,8 +35,6 @@ const PULSE_MIN: u8 = 90;
 const PULSE_MAX: u8 = 220;
 const PULSE_PERIOD: f32 = 1.6;
 const PULSE_OFF_ALPHA: u8 = 160;
-/// Yellow saturation highlight: potential gain of the held food.
-const SAT_OVERLAY_COLOR: u32 = 0xB0_FF_D5_4A;
 
 const TOGGLE_BUTTON: u32 = 1;
 const OVERLAY_BUTTON: u32 = 2;
@@ -157,7 +156,7 @@ impl AppleSkin {
             }),
             Widget::Text(TextWidget {
                 id: 6,
-                text: "Horizon v0.7.7 desenha a barra vanilla depois dos mods; a prévia fica fixa acima da barra. O amarelo é o ganho potencial de saturação do alimento, não a saturação atual.".into(),
+                text: "Somente a fome restaurada aparece na linha fixa acima da barra. Os contornos amarelos são o ganho potencial de saturação do alimento, não a saturação atual. Só a opacidade pulsa; os ícones não se movem.".into(),
                 color: 0xAA_AA_AA,
             }),
         ]);
@@ -184,41 +183,58 @@ impl AppleSkin {
         let (w, h) = render::gui_size();
         let alpha = self.alpha();
         let signature = format!(
-            "overlay|{}|{}|{}|{}|{:.0}x{:.0}",
+            "gain-only-original-yellow|{}|{}|{}|{}|{:.0}x{:.0}",
             p.hunger_before, p.hunger_after, p.saturation_gain_tenths, alpha, w, h
         );
         if signature == self.last {
             return;
         }
         let (x_right, y) = overlay::preview_anchor(w, h);
-        let mut shapes = Vec::new();
-        for icon in overlay::projected_icons(p.hunger_after, x_right, y) {
+        let mut shapes = Vec::with_capacity(overlay::MAX_SHAPES);
+        // AppleSkin's hunger convention: show only gained slots, not the whole
+        // projected food row. Empty backgrounds are 1/4 of foreground opacity.
+        for icon in overlay::restored_icons(p.hunger_before, p.hunger_after, x_right, y) {
+            let rect = Rect {
+                x: icon.x,
+                y: icon.y,
+                w: overlay::ICON,
+                h: overlay::ICON,
+            };
+            shapes.push(Shape::Sprite(SpriteShape {
+                sprite: "hud/food_empty".into(),
+                rect,
+                color: ((u32::from(alpha) / 4) << 24) | 0x00FF_FFFF,
+            }));
             shapes.push(Shape::Sprite(SpriteShape {
                 sprite: if icon.half {
                     "hud/food_half".into()
                 } else {
                     "hud/food_full".into()
                 },
-                rect: Rect {
-                    x: icon.x,
-                    y: icon.y,
-                    w: overlay::ICON,
-                    h: overlay::ICON,
-                },
+                rect,
                 color: (u32::from(alpha) << 24) | 0x00FF_FFFF,
             }));
         }
-        for rect in overlay::saturation_rects(p.saturation_gain_tenths, p.hunger_after, x_right, y)
-        {
-            shapes.push(Shape::Fill(FillShape {
-                rect: Rect {
-                    x: rect.x,
-                    y: rect.y,
-                    w: rect.w,
-                    h: rect.h,
-                },
-                color: SAT_OVERLAY_COLOR,
-            }));
+        // Exact original yellow outlines, not a band or a tint of red meat.
+        // The host draws this list in order, after the hunger sprites above.
+        // API 0.1 has no current saturation: potential gain starts at the right.
+        for icon in overlay::potential_saturation_icons(
+            p.saturation_gain_tenths,
+            p.hunger_after,
+            x_right,
+            y,
+        ) {
+            for run in icon.kind.runs() {
+                shapes.push(Shape::Fill(FillShape {
+                    rect: Rect {
+                        x: icon.x + f32::from(run.x),
+                        y: icon.y + f32::from(run.y),
+                        w: f32::from(run.w),
+                        h: 1.0,
+                    },
+                    color: (u32::from(alpha) << 24) | run.rgb,
+                }));
+            }
         }
         render::set_hud(&shapes);
         self.last = signature;
@@ -422,7 +438,7 @@ impl Mod for AppleSkin {
         if !self.enabled || !self.overlay || !self.pulse {
             return;
         }
-        self.phase += seconds.max(0.0);
+        self.phase = (self.phase + seconds.max(0.0)).rem_euclid(PULSE_PERIOD);
         if let Some(p) = self.current {
             self.draw_overlay(p);
         }

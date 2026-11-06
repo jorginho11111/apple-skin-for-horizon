@@ -1,12 +1,18 @@
-//! Geometry and pulse math for the compatible hunger preview.
+//! Gain-only food preview and opacity math, independent of the Horizon SDK.
 //!
-//! Horizon Android v0.7.7 draws mod HUD shapes *before* the vanilla health/food
-//! rows, even though the WIT documentation says they are drawn over the HUD.
-//! An exact overlay on the food icons is therefore covered by the opaque
-//! vanilla sprites. The compatible preview is a fixed row 10 GUI pixels above
-//! the vanilla food row. Only opacity animates; positions never move.
+//! Hunger selection and saturation thresholds follow AppleSkin's original
+//! `HUDOverlayHandler` at 66fcdb8b12820c9b1cf3147abfdcf5530559f62b.
+//! Horizon Android v0.7.7 draws mod shapes before the opaque vanilla food
+//! icons, so this port places the preview in a fixed row above the food bar.
+//! Only opacity animates; positions never move.
+//!
+//! Current saturation is not exposed by API 0.1. Yellow icons therefore show
+//! the food's potential gain from the right edge, capped by projected hunger,
+//! rather than the player's actual saturation or its true position on the bar.
 
-/// One projected hunger icon in the preview row.
+use crate::saturation_icons::{self, PixelRun};
+
+/// A hunger icon touched by the food's gain, not an icon already filled.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HungerIcon {
     pub x: f32,
@@ -15,23 +21,49 @@ pub struct HungerIcon {
     pub half: bool,
 }
 
-/// Yellow saturation highlight over the preview row (partial last icon).
+/// The original AppleSkin yellow outlines have four discrete sizes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(usize)]
+pub enum SaturationIconKind {
+    Quarter = 0,
+    Half = 1,
+    ThreeQuarter = 2,
+    Full = 3,
+}
+
+impl SaturationIconKind {
+    /// `tenths` is the saturation in this icon, from 0 to 20 tenths (2 points).
+    /// Upstream thresholds: <=0.25, <=0.5, <1, >=1 of a two-point icon.
+    pub fn for_tenths(tenths: u32) -> Option<Self> {
+        match tenths {
+            0 => None,
+            1..=5 => Some(Self::Quarter),
+            6..=10 => Some(Self::Half),
+            11..=19 => Some(Self::ThreeQuarter),
+            _ => Some(Self::Full),
+        }
+    }
+
+    pub fn runs(self) -> &'static [PixelRun] {
+        saturation_icons::ICONS[self as usize]
+    }
+}
+
+/// A yellow saturation outline drawn over the preview row.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SatRect {
+pub struct SaturationIcon {
     pub x: f32,
     pub y: f32,
-    pub w: f32,
-    pub h: f32,
+    pub kind: SaturationIconKind,
 }
 
 pub const ICON: f32 = 9.0;
 pub const PITCH: f32 = 8.0;
 /// Fixed vertical offset from the vanilla food row to the preview row.
 pub const PREVIEW_ROW_OFFSET: f32 = 10.0;
-/// The yellow highlight is a band across the middle of the drumsticks, not a
-/// full 9x9 rectangle, so it reads as saturation on top of the meat icons.
-pub const SAT_BAND_HEIGHT: f32 = 3.0;
-pub const SAT_BAND_TOP: f32 = 3.0;
+/// At most 10 empty backgrounds + 10 hunger sprites + 10 full yellow outlines
+/// (16 pixel runs each), below the host's 1024-shape limit.
+pub const MAX_SHAPES: usize = 180;
 
 /// Vanilla `Hud` food-row anchor.
 pub fn anchor(gui_w: f32, gui_h: f32) -> (f32, f32) {
@@ -44,39 +76,42 @@ pub fn preview_anchor(gui_w: f32, gui_h: f32) -> (f32, f32) {
     (x_right, y - PREVIEW_ROW_OFFSET)
 }
 
-fn level(food: u32, icon: u32) -> u32 {
-    let first = icon * 2 + 1;
-    if first < food {
-        2
-    } else if first == food {
-        1
-    } else {
-        0
-    }
+fn icon_x(x_right: f32, n: u32) -> f32 {
+    x_right - n as f32 * PITCH - ICON
 }
 
-/// The projected food row after eating: full/half icons for `hunger_after`.
-pub fn projected_icons(hunger_after: u32, x_right: f32, y: f32) -> Vec<HungerIcon> {
-    let mut out = Vec::new();
-    for n in 0..10u32 {
-        let a = level(hunger_after, n);
-        if a > 0 {
-            out.push(HungerIcon {
-                x: x_right - n as f32 * PITCH - ICON,
-                y,
-                half: a == 1,
-            });
-        }
-    }
-    out
-}
-
-/// Potential saturation gain drawn as a yellow band over the preview row.
+/// Only the hunger icons restored by this food, using upstream's selection.
 ///
-/// The Android API does not expose current saturation, so this is the food's
-/// gain, capped by the projected hunger (vanilla saturation cannot exceed the
-/// food level). It is not the player's current saturation.
-pub fn saturation_rects(gain_tenths: u32, hunger_after: u32, x_right: f32, y: f32) -> Vec<SatRect> {
+/// As in AppleSkin, an existing half icon is redrawn as full when it gains a
+/// point. For example, 15 -> 17 draws a full icon at the old half-icon slot
+/// and a half at the next slot; it does not repeat the seven full icons.
+pub fn restored_icons(before: u32, after: u32, x_right: f32, y: f32) -> Vec<HungerIcon> {
+    let before = before.min(20);
+    let after = after.min(20);
+    if after <= before {
+        return Vec::new();
+    }
+    let start = before / 2;
+    let end = after.div_ceil(2);
+    (start..end)
+        .map(|n| HungerIcon {
+            x: icon_x(x_right, n),
+            y,
+            half: n * 2 + 1 == after,
+        })
+        .collect()
+}
+
+/// Potential saturation gain as original yellow meat outlines, right-aligned.
+///
+/// This is a gain preview from an assumed zero baseline, not current saturation.
+/// The hidden player's saturation could shift or reduce the actual gained range.
+pub fn potential_saturation_icons(
+    gain_tenths: u32,
+    hunger_after: u32,
+    x_right: f32,
+    y: f32,
+) -> Vec<SaturationIcon> {
     let mut remaining = gain_tenths.min(hunger_after.saturating_mul(10)).min(200);
     let mut out = Vec::new();
     for n in 0..10u32 {
@@ -85,14 +120,13 @@ pub fn saturation_rects(gain_tenths: u32, hunger_after: u32, x_right: f32, y: f3
         }
         let take = remaining.min(20);
         remaining -= take;
-        let w = ICON * take as f32 / 20.0;
-        let icon_x = x_right - n as f32 * PITCH - ICON;
-        out.push(SatRect {
-            x: icon_x + ICON - w,
-            y: y + SAT_BAND_TOP,
-            w,
-            h: SAT_BAND_HEIGHT,
-        });
+        if let Some(kind) = SaturationIconKind::for_tenths(take) {
+            out.push(SaturationIcon {
+                x: icon_x(x_right, n),
+                y,
+                kind,
+            });
+        }
     }
     out
 }
@@ -125,50 +159,133 @@ mod tests {
     }
 
     #[test]
-    fn projected_row_after_bread_from_twelve() {
-        // 12 + 5 = 17: eight full icons and one half icon.
-        let icons = projected_icons(17, 304.0, 191.0);
-        assert_eq!(icons.len(), 9);
-        assert!(icons[..8].iter().all(|i| !i.half));
-        assert!(icons[8].half);
-        assert_eq!(icons[0].x, 304.0 - 9.0);
-        assert_eq!(icons[8].x, 304.0 - 8.0 * 8.0 - 9.0);
+    fn bread_from_twelve_draws_only_two_and_a_half_gained_icons() {
+        let icons = restored_icons(12, 17, 304.0, 191.0);
+        assert_eq!(icons.len(), 3);
+        assert!(!icons[0].half);
+        assert!(!icons[1].half);
+        assert!(icons[2].half);
+        assert_eq!(icons[0].x, 304.0 - 6.0 * 8.0 - 9.0);
+        assert_eq!(icons[2].x, 304.0 - 8.0 * 8.0 - 9.0);
         assert!(icons.iter().all(|i| i.y == 191.0));
     }
 
     #[test]
-    fn projected_row_full_and_empty() {
-        let full = projected_icons(20, 304.0, 191.0);
-        assert_eq!(full.len(), 10);
-        assert!(full.iter().all(|i| !i.half));
-        assert!(projected_icons(0, 304.0, 191.0).is_empty());
+    fn even_hunger_does_not_repeat_the_current_full_icons() {
+        let icons = restored_icons(16, 18, 304.0, 191.0);
+        assert_eq!(icons.len(), 1);
+        assert!(!icons[0].half);
+        assert_eq!(icons[0].x, 304.0 - 8.0 * 8.0 - 9.0);
+    }
+
+    #[test]
+    fn odd_hunger_follows_appleskins_partial_icon_convention() {
+        let icons = restored_icons(15, 17, 304.0, 191.0);
+        assert_eq!(icons.len(), 2);
+        assert!(!icons[0].half);
+        assert!(icons[1].half);
+        assert_eq!(icons[0].x, 304.0 - 7.0 * 8.0 - 9.0);
+        assert_eq!(icons[1].x, 304.0 - 8.0 * 8.0 - 9.0);
+    }
+
+    #[test]
+    fn hunger_gain_is_capped_at_twenty() {
+        let icons = restored_icons(18, 20, 304.0, 191.0);
+        assert_eq!(icons.len(), 1);
+        assert!(!icons[0].half);
+        assert_eq!(icons[0].x, 304.0 - 9.0 * 8.0 - 9.0);
+    }
+
+    #[test]
+    fn no_hunger_icons_when_nothing_is_restored() {
+        for (before, after) in [(20, 20), (17, 17), (0, 0), (19, 18), (25, 20)] {
+            assert!(restored_icons(before, after, 304.0, 191.0).is_empty());
+        }
+    }
+
+    #[test]
+    fn saturation_thresholds_match_the_original_handler() {
+        use SaturationIconKind::*;
+        for (tenths, expected) in [
+            (0, None),
+            (1, Some(Quarter)),
+            (4, Some(Quarter)),
+            (5, Some(Quarter)),
+            (6, Some(Half)),
+            (10, Some(Half)),
+            (11, Some(ThreeQuarter)),
+            (19, Some(ThreeQuarter)),
+            (20, Some(Full)),
+            (200, Some(Full)),
+        ] {
+            assert_eq!(SaturationIconKind::for_tenths(tenths), expected);
+        }
+    }
+
+    #[test]
+    fn tiny_salmon_gain_still_gets_the_smallest_yellow_outline() {
+        let icons = potential_saturation_icons(4, 18, 304.0, 191.0);
+        assert_eq!(icons.len(), 1);
+        assert_eq!(icons[0].kind, SaturationIconKind::Quarter);
+        assert_eq!(icons[0].x, 304.0 - 9.0);
     }
 
     #[test]
     fn saturation_is_capped_by_projected_hunger() {
-        // Golden carrot: +14.4 saturation, but only 6 hunger after eating.
-        let rects = saturation_rects(144, 6, 304.0, 191.0);
-        assert_eq!(rects.len(), 3);
-        assert!(rects.iter().all(|r| (r.w - 9.0).abs() < f32::EPSILON));
+        let icons = potential_saturation_icons(144, 6, 304.0, 191.0);
+        assert_eq!(icons.len(), 3);
+        assert!(icons.iter().all(|i| i.kind == SaturationIconKind::Full));
     }
 
     #[test]
-    fn partial_saturation_icon_aligns_to_the_right() {
-        // +9.6 saturation => 4 full icons and 0.8 of the fifth.
-        let rects = saturation_rects(96, 20, 304.0, 191.0);
-        assert_eq!(rects.len(), 5);
-        let last = rects[4];
-        assert!((last.w - 7.2).abs() < 0.001);
-        assert!((last.x - (304.0 - 4.0 * 8.0 - 9.0 + 1.8)).abs() < 0.001);
+    fn partial_saturation_uses_the_original_three_quarter_outline() {
+        let icons = potential_saturation_icons(96, 20, 304.0, 191.0);
+        assert_eq!(icons.len(), 5);
+        assert!(
+            icons[..4]
+                .iter()
+                .all(|i| i.kind == SaturationIconKind::Full)
+        );
+        assert_eq!(icons[4].kind, SaturationIconKind::ThreeQuarter);
+        assert_eq!(icons[4].x, 304.0 - 4.0 * 8.0 - 9.0);
     }
 
     #[test]
-    fn saturation_band_stays_inside_the_icon() {
-        let rects = saturation_rects(60, 20, 304.0, 191.0);
-        for r in rects {
-            assert_eq!(r.h, SAT_BAND_HEIGHT);
-            assert_eq!(r.y, 191.0 + SAT_BAND_TOP);
-            assert!(r.y + r.h <= 191.0 + ICON);
+    fn yellow_icons_can_show_saturation_only_when_hunger_is_full() {
+        assert!(restored_icons(20, 20, 304.0, 191.0).is_empty());
+        assert_eq!(potential_saturation_icons(96, 20, 304.0, 191.0).len(), 5);
+        assert!(potential_saturation_icons(0, 20, 304.0, 191.0).is_empty());
+        assert!(potential_saturation_icons(96, 0, 304.0, 191.0).is_empty());
+    }
+
+    #[test]
+    fn generated_outlines_are_valid_nested_meat_shapes() {
+        use std::collections::HashSet;
+        let masks: Vec<HashSet<(u8, u8)>> = saturation_icons::ICONS
+            .iter()
+            .map(|runs| {
+                let mut pixels = HashSet::new();
+                for run in *runs {
+                    assert!(run.x + run.w <= 9);
+                    assert!(run.y < 9);
+                    assert!(run.w > 0);
+                    assert!(run.rgb <= 0xFF_FFFF);
+                    for dx in 0..run.w {
+                        assert!(pixels.insert((run.x + dx, run.y)));
+                    }
+                }
+                pixels
+            })
+            .collect();
+        let run_counts: Vec<usize> = saturation_icons::ICONS
+            .iter()
+            .map(|runs| runs.len())
+            .collect();
+        assert_eq!(run_counts, [7, 11, 12, 16]);
+        let pixel_counts: Vec<usize> = masks.iter().map(HashSet::len).collect();
+        assert_eq!(pixel_counts, [9, 14, 17, 21]);
+        for pair in masks.windows(2) {
+            assert!(pair[0].is_subset(&pair[1]));
         }
     }
 
@@ -186,13 +303,27 @@ mod tests {
     #[test]
     fn geometry_does_not_depend_on_pulse_phase() {
         let (x, y) = preview_anchor(427.0, 240.0);
-        let icons = projected_icons(17, x, y);
-        let rects = saturation_rects(60, 17, x, y);
+        let hunger = restored_icons(12, 17, x, y);
+        let saturation = potential_saturation_icons(60, 17, x, y);
         for phase in [0.0, 0.4, 0.8, 1.2, 1.6] {
             let _alpha = pulse_alpha(phase, 90, 220, 1.6);
             assert_eq!(preview_anchor(427.0, 240.0), (x, y));
-            assert_eq!(projected_icons(17, x, y), icons);
-            assert_eq!(saturation_rects(60, 17, x, y), rects);
+            assert_eq!(restored_icons(12, 17, x, y), hunger);
+            assert_eq!(potential_saturation_icons(60, 17, x, y), saturation);
         }
+    }
+
+    #[test]
+    fn worst_case_fits_the_host_shape_budget() {
+        let hunger = restored_icons(0, 20, 304.0, 191.0);
+        let saturation = potential_saturation_icons(200, 20, 304.0, 191.0);
+        let shapes = hunger.len() * 2
+            + saturation
+                .iter()
+                .map(|i| i.kind.runs().len())
+                .sum::<usize>();
+        assert_eq!(shapes, 180);
+        assert_eq!(shapes, MAX_SHAPES);
+        assert!(shapes < 1024);
     }
 }

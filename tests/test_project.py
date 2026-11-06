@@ -13,6 +13,32 @@ class ProjectTests(unittest.TestCase):
         self.assertIn("render", m["capabilities"])
         self.assertEqual(set(m["experimental"]), {"input", "render", "ui"})
         self.assertFalse((ROOT / "horizon-native.json").exists())
+        self.assertNotIn("registries", m["capabilities"])
+        self.assertFalse((ROOT / "assets").exists())
+        self.assertFalse((ROOT / "data").exists())
+
+    def test_build_workflow_targets_the_active_branch_and_main(self):
+        import re
+        workflow = (ROOT / ".github/workflows/build.yml").read_text()
+        branches = re.search(r"branches: \[(.*?)\]", workflow).group(1)
+        self.assertEqual(
+            {b.strip().strip('"') for b in branches.split(",")},
+            {"arena/eb13e5b2-apple-skin-for-horizon", "main"},
+        )
+
+    def test_hud_uses_gain_only_hunger_and_original_yellow_runs(self):
+        lib = (ROOT / "src/lib.rs").read_text()
+        overlay = (ROOT / "src/overlay.rs").read_text()
+        self.assertIn("mod saturation_icons;", lib)
+        self.assertIn("hud/food_empty", lib)
+        self.assertIn("p.hunger_before, p.hunger_after, x_right, y", lib)
+        self.assertIn("icon.kind.runs()", lib)
+        self.assertIn("| run.rgb", lib)
+        self.assertIn("rem_euclid(PULSE_PERIOD)", lib)
+        for source in (lib, overlay):
+            self.assertNotIn("projected_icons", source)
+            self.assertNotIn("saturation_rects", source)
+            self.assertNotIn("SAT_OVERLAY_COLOR", source)
 
     def test_versions_match(self):
         m = tomllib.loads((ROOT / "horizon-mod.toml").read_text())
@@ -20,6 +46,9 @@ class ProjectTests(unittest.TestCase):
         compat = json.loads((ROOT / "compatibility.json").read_text())
         self.assertEqual(m["version"], c["package"]["version"])
         self.assertEqual(m["version"], compat["mod_version"])
+        lock = tomllib.loads((ROOT / "Cargo.lock").read_text())
+        root_package = next(p for p in lock["package"] if p["name"] == "appleskin-hmod")
+        self.assertEqual(m["version"], root_package["version"])
         self.assertEqual(compat["game"], "26.3")
         self.assertEqual(compat["package_format"], "hmod")
         self.assertEqual(compat["horizon_android_release"], "v0.7.7")
