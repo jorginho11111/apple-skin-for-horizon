@@ -15,6 +15,9 @@ def main() -> None:
         raise SystemExit("missing target/horizon-mod/appleskin.hmod; run cargo horizon-mod build first")
     release = ROOT / "target/release"
     report = ROOT / "target/report"
+    # CI caches target/ between runs; never publish a stale versioned artifact.
+    if release.exists():
+        shutil.rmtree(release)
     release.mkdir(parents=True, exist_ok=True)
     report.mkdir(parents=True, exist_ok=True)
     out = release / f"appleskin-{version}-android.hmod"

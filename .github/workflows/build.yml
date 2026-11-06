@@ -124,7 +124,9 @@ jobs:
           python3 - <<'PY'
           import json, tomllib, zipfile
           from pathlib import Path
-          path, = Path("target/release").glob("appleskin-*-android.hmod")
+          version = json.loads(Path("compatibility.json").read_text())["mod_version"]
+          path = Path("target/release") / f"appleskin-{version}-android.hmod"
+          assert path.is_file(), path
           with zipfile.ZipFile(path) as z:
               assert z.testzip() is None
               names = z.namelist()
