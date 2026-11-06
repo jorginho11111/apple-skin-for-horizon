@@ -47,8 +47,16 @@ pub fn tenths_string(tenths: u32) -> String {
 mod tests {
     use super::*;
 
-    const BREAD: FoodInfo = FoodInfo { nutrition: 5, saturation_tenths: 60, can_always_eat: false };
-    const GOLDEN_APPLE: FoodInfo = FoodInfo { nutrition: 4, saturation_tenths: 96, can_always_eat: true };
+    const BREAD: FoodInfo = FoodInfo {
+        nutrition: 5,
+        saturation_tenths: 60,
+        can_always_eat: false,
+    };
+    const GOLDEN_APPLE: FoodInfo = FoodInfo {
+        nutrition: 4,
+        saturation_tenths: 96,
+        can_always_eat: true,
+    };
 
     #[test]
     fn bread_projects_hunger_and_saturation() {

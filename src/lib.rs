@@ -167,33 +167,90 @@ impl AppleSkin {
             );
             let width = render::text_width(&text) + 24.0;
             let shapes = vec![
-                Shape::Fill(FillShape { rect: Rect { x: 0.0, y: 0.0, w: width, h: 16.0 }, color: BG }),
-                Shape::Item(ItemShape { item: item_id.into(), at: Point { x: 2.0, y: 0.0 }, scale: 1.0 }),
-                Shape::Text(TextShape { text, at: Point { x: 20.0, y: 4.0 }, color: TEXT_COLOR, centered: false, shadow: true }),
+                Shape::Fill(FillShape {
+                    rect: Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        w: width,
+                        h: 16.0,
+                    },
+                    color: BG,
+                }),
+                Shape::Item(ItemShape {
+                    item: item_id.into(),
+                    at: Point { x: 2.0, y: 0.0 },
+                    scale: 1.0,
+                }),
+                Shape::Text(TextShape {
+                    text,
+                    at: Point { x: 20.0, y: 4.0 },
+                    color: TEXT_COLOR,
+                    centered: false,
+                    shadow: true,
+                }),
             ];
             (width, 16.0, shapes)
         } else {
             let width = render::text_width(&hunger_line).max(render::text_width(&sat_line)) + 24.0;
             let shapes = vec![
-                Shape::Fill(FillShape { rect: Rect { x: 0.0, y: 0.0, w: width, h: 26.0 }, color: BG }),
-                Shape::Item(ItemShape { item: item_id.into(), at: Point { x: 2.0, y: 5.0 }, scale: 1.0 }),
-                Shape::Text(TextShape { text: hunger_line, at: Point { x: 20.0, y: 3.0 }, color: HUNGER_COLOR, centered: false, shadow: true }),
-                Shape::Text(TextShape { text: sat_line, at: Point { x: 20.0, y: 14.0 }, color: SAT_COLOR, centered: false, shadow: true }),
+                Shape::Fill(FillShape {
+                    rect: Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        w: width,
+                        h: 26.0,
+                    },
+                    color: BG,
+                }),
+                Shape::Item(ItemShape {
+                    item: item_id.into(),
+                    at: Point { x: 2.0, y: 5.0 },
+                    scale: 1.0,
+                }),
+                Shape::Text(TextShape {
+                    text: hunger_line,
+                    at: Point { x: 20.0, y: 3.0 },
+                    color: HUNGER_COLOR,
+                    centered: false,
+                    shadow: true,
+                }),
+                Shape::Text(TextShape {
+                    text: sat_line,
+                    at: Point { x: 20.0, y: 14.0 },
+                    color: SAT_COLOR,
+                    centered: false,
+                    shadow: true,
+                }),
             ];
             (width, 26.0, shapes)
         };
 
         let (x, y) = match self.position {
-            Position::HungerBar => ((w / 2.0 + 91.0 - panel_w).max(2.0), (h - 39.0 - panel_h - 4.0).max(2.0)),
+            Position::HungerBar => (
+                (w / 2.0 + 91.0 - panel_w).max(2.0),
+                (h - 39.0 - panel_h - 4.0).max(2.0),
+            ),
             Position::TopLeft => (4.0, 4.0),
             Position::TopRight => ((w - panel_w - 4.0).max(2.0), 4.0),
         };
         let placed: Vec<Shape> = shapes
             .into_iter()
             .map(|shape| match shape {
-                Shape::Fill(mut s) => { s.rect.x += x; s.rect.y += y; Shape::Fill(s) }
-                Shape::Item(mut s) => { s.at.x += x; s.at.y += y; Shape::Item(s) }
-                Shape::Text(mut s) => { s.at.x += x; s.at.y += y; Shape::Text(s) }
+                Shape::Fill(mut s) => {
+                    s.rect.x += x;
+                    s.rect.y += y;
+                    Shape::Fill(s)
+                }
+                Shape::Item(mut s) => {
+                    s.at.x += x;
+                    s.at.y += y;
+                    Shape::Item(s)
+                }
+                Shape::Text(mut s) => {
+                    s.at.x += x;
+                    s.at.y += y;
+                    Shape::Text(s)
+                }
                 other => other,
             })
             .collect();
@@ -264,24 +321,45 @@ impl Mod for AppleSkin {
                 self.enabled = !self.enabled;
                 self.save();
                 self.clear();
-                Ok(Some(if self.enabled { "AppleSkin ligado." } else { "AppleSkin desligado." }.into()))
+                Ok(Some(
+                    if self.enabled {
+                        "AppleSkin ligado."
+                    } else {
+                        "AppleSkin desligado."
+                    }
+                    .into(),
+                ))
             }
             "compact" => {
                 self.compact = !self.compact;
                 self.save();
                 self.last.clear();
-                Ok(Some(if self.compact { "Modo compacto ligado." } else { "Modo compacto desligado." }.into()))
+                Ok(Some(
+                    if self.compact {
+                        "Modo compacto ligado."
+                    } else {
+                        "Modo compacto desligado."
+                    }
+                    .into(),
+                ))
             }
             "position" => {
-                let idx = Position::ALL.iter().position(|p| *p == self.position).unwrap_or(0);
+                let idx = Position::ALL
+                    .iter()
+                    .position(|p| *p == self.position)
+                    .unwrap_or(0);
                 self.position = Position::ALL[(idx + 1) % Position::ALL.len()];
                 self.save();
                 self.last.clear();
                 Ok(Some(format!("Posição: {}", self.position.label())))
             }
             "status" => Ok(Some(self.status())),
-            "help" => Ok(Some("Comandos: /appleskin [toggle|status|compact|position|help].".into())),
-            other => Err(format!("Argumento desconhecido: {other}. Use /appleskin help.")),
+            "help" => Ok(Some(
+                "Comandos: /appleskin [toggle|status|compact|position|help].".into(),
+            )),
+            other => Err(format!(
+                "Argumento desconhecido: {other}. Use /appleskin help."
+            )),
         }
     }
 
@@ -290,7 +368,10 @@ impl Mod for AppleSkin {
             TOGGLE_BUTTON => self.enabled = !self.enabled,
             COMPACT_BUTTON => self.compact = !self.compact,
             POSITION_BUTTON => {
-                let idx = Position::ALL.iter().position(|p| *p == self.position).unwrap_or(0);
+                let idx = Position::ALL
+                    .iter()
+                    .position(|p| *p == self.position)
+                    .unwrap_or(0);
                 self.position = Position::ALL[(idx + 1) % Position::ALL.len()];
             }
             _ => return,
@@ -313,9 +394,25 @@ mod tests {
 
     #[test]
     fn vanilla_foods_are_present() {
-        assert_eq!(foods::lookup("minecraft:bread"), Some(FoodInfo { nutrition: 5, saturation_tenths: 60, can_always_eat: false }));
-        assert_eq!(foods::lookup("minecraft:golden_carrot").unwrap().saturation_tenths, 144);
-        assert!(foods::lookup("minecraft:golden_apple").unwrap().can_always_eat);
+        assert_eq!(
+            foods::lookup("minecraft:bread"),
+            Some(FoodInfo {
+                nutrition: 5,
+                saturation_tenths: 60,
+                can_always_eat: false
+            })
+        );
+        assert_eq!(
+            foods::lookup("minecraft:golden_carrot")
+                .unwrap()
+                .saturation_tenths,
+            144
+        );
+        assert!(
+            foods::lookup("minecraft:golden_apple")
+                .unwrap()
+                .can_always_eat
+        );
     }
 
     #[test]
