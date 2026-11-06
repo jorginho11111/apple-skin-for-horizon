@@ -169,7 +169,12 @@ pub fn regeneration_heal(duration: i32, amplifier: i32) -> f32 {
     (duration / (50 >> (amplifier & 31)).max(1)) as f32
 }
 
-pub fn estimated_heal(mut food: i32, mut saturation: f32, mut exhaustion: f32, natural: bool) -> f32 {
+pub fn estimated_heal(
+    mut food: i32,
+    mut saturation: f32,
+    mut exhaustion: f32,
+    natural: bool,
+) -> f32 {
     if !natural || !exhaustion.is_finite() || !saturation.is_finite() {
         return 0.0;
     }
@@ -248,7 +253,12 @@ pub fn flag_text(on: bool) -> &'static str {
 }
 
 pub fn labels(options: Options) -> Vec<String> {
-    let names = ["Saturation icons", "Exhaustion strip", "Held food preview", "Off-hand food fallback"];
+    let names = [
+        "Saturation icons",
+        "Exhaustion strip",
+        "Held food preview",
+        "Off-hand food fallback",
+    ];
     let mut out: Vec<String> = names
         .iter()
         .enumerate()
@@ -380,7 +390,10 @@ mod tests {
             a = Animation::for_code(a.next().code());
             seen.push(a);
         }
-        assert_eq!(seen, vec![Animation::Fade, Animation::Pulse, Animation::Both]);
+        assert_eq!(
+            seen,
+            vec![Animation::Fade, Animation::Pulse, Animation::Both]
+        );
         assert_eq!(Animation::for_code("nonsense"), Animation::Both);
         assert_eq!(Animation::Fade.next().next().next(), Animation::Fade);
     }
@@ -431,7 +444,10 @@ mod tests {
         assert_eq!(all[0], "Saturation icons: on");
         assert_eq!(all[3], "Off-hand food fallback: on");
         assert_eq!(all[4], "Animation: fade + pulse");
-        let off = Options { exhaustion: false, ..Options::default() };
+        let off = Options {
+            exhaustion: false,
+            ..Options::default()
+        };
         assert_eq!(labels(off)[1], "Exhaustion strip: off");
     }
 
