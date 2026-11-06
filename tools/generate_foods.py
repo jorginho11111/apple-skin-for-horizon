@@ -18,10 +18,14 @@ def main() -> None:
     ]
     for item, v in data["items"].items():
         tenths = round(v["saturation"] * 10)
-        lines.append(
-            f'    ("{item}", FoodInfo {{ nutrition: {v["nutrition"]}, '
-            f'saturation_tenths: {tenths}, can_always_eat: {str(v["can_always_eat"]).lower()} }}),'
-        )
+        lines.append("    (")
+        lines.append(f'        "{item}",')
+        lines.append("        FoodInfo {")
+        lines.append(f'            nutrition: {v["nutrition"]},')
+        lines.append(f"            saturation_tenths: {tenths},")
+        lines.append(f'            can_always_eat: {str(v["can_always_eat"]).lower()},')
+        lines.append("        },")
+        lines.append("    ),")
     lines += [
         "];",
         "",
