@@ -323,6 +323,7 @@ mod tests {
                 .map(|i| i.kind.runs().len())
                 .sum::<usize>();
         assert_eq!(shapes, 180);
-        assert!(shapes <= MAX_SHAPES && shapes < 1024);
+        assert_eq!(shapes, MAX_SHAPES);
+        assert!(shapes < 1024);
     }
 }
