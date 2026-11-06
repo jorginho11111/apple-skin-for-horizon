@@ -1,0 +1,35 @@
+# Sandbox Horizon: comandos e configurações, sem precisar do jogo completo.
+[[step]]
+expect.commands = ["appleskin"]
+
+[[step]]
+command = "appleskin help"
+expect.feedback = "Comandos: /appleskin [toggle|status|compact|position|help]."
+
+[[step]]
+command = "appleskin status"
+expect.feedback = "AppleSkin ligado: segure uma comida na mão principal."
+
+[[step]]
+command = "appleskin"
+expect.feedback = "AppleSkin desligado."
+
+[[step]]
+command = "appleskin status"
+expect.feedback = "AppleSkin desligado. Use /appleskin para ligar."
+
+[[step]]
+command = "appleskin"
+expect.feedback = "AppleSkin ligado."
+
+[[step]]
+command = "appleskin compact"
+expect.feedback = "Modo compacto ligado."
+
+[[step]]
+command = "appleskin position"
+expect.feedback = "Posição: Canto superior esquerdo"
+
+[[step]]
+command = "appleskin nonsense"
+expect.error = "Argumento desconhecido: nonsense. Use /appleskin help."

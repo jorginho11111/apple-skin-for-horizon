@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Generate PT-BR GitHub Release notes with versions, download and error report."""
+from __future__ import annotations
+import json, sys
+from pathlib import Path
+
+def main() -> None:
+    build = json.loads(Path(sys.argv[1]).read_text())
+    out = Path(sys.argv[2])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    v = build["mod_version"]
+    artifact = build["artifact"]
+    url = f"https://github.com/jorginho11111/apple-skin-for-horizon/releases/download/v{v}/{artifact}"
+    lines = [
+        f"# AppleSkin {v} para Horizon Android",
+        "",
+        "Mod `.hmod` sandboxed para o port Android oficial do Horizon (`Vasysik/horizon-android`).",
+        "Mostra uma prévia de fome e o ganho de saturação da comida segurada na mão principal.",
+        "",
+        "## Versões",
+        "",
+        f"- AppleSkin: **{v}**",
+        f"- Minecraft: **{build['game']}**",
+        f"- Horizon Android: **{build['horizon_android_release']}** (commit `{build['horizon_android_revision']}`)",
+        f"- API de mods: **{build['mod_api']}** (WIT `horizon:mods@0.1.0`)",
+        f"- Rust: **{build['rust']}** / alvo `{build['wasm_target']}`",
+        f"- APKs compatíveis: **{', '.join(build['supported_apk_architectures'])}** (64 bits, Android {build.get('minimum_android', '9+')})",
+        "",
+        "## Download",
+        "",
+        f"1. Baixe [{artifact}]({url}).",
+        f"2. Confira o SHA-256: `{build['sha256']}`.",
+        "3. No Horizon Android, abra **Mods** e use **Import file** para selecionar o `.hmod`, ou cole a URL HTTPS acima e toque em **Import .hmod**.",
+        "4. Abra **Installed**, ative **AppleSkin** e inicie o mundo.",
+        "5. Segure uma comida na mão principal. A prévia aparece acima da barra de fome por padrão.",
+        "",
+        "Comandos: `/appleskin`, `/appleskin status`, `/appleskin compact`, `/appleskin position`, `/appleskin help`.",
+        "Configurações: **Options > Mods > AppleSkin**.",
+        "",
+        "## O que a prévia mostra",
+        "",
+        "- Fome atual e fome projetada após comer, limitada a 20.",
+        "- Ganho de saturação do alimento segurado, com base nos dados vanilla de Minecraft 26.3.",
+        "- Ícone do alimento, modo compacto e posição configurável.",
+        "",
+        "## Erros e limitações conhecidos",
+        "",
+    ]
+    for lim in build["limitations"]:
+        lines.append(f"- {lim}")
+    lines += [
+        "",
+        "## Relatório de build",
+        "",
+        f"- Commit: `{build['ci']['commit']}`",
+        f"- CI: [execução {build['ci']['run_id']}]({build['ci']['run_url']})",
+        f"- Artefato: `{artifact}` ({build['size_bytes']} bytes)",
+        f"- SHA-256: `{build['sha256']}`",
+        "- Verificações: testes Python, `cargo fmt`, `cargo clippy`, `cargo test`, `cargo horizon-mod build`, `cargo horizon-mod check` e scripts de sandbox `cargo horizon-mod test`.",
+        "- O arquivo `build.json` anexado contém versões, checksum e limitações; `check.json` contém a inspeção oficial do pacote.",
+        "- Se algum desses passos falhar, a Release não é publicada automaticamente; o erro fica no GitHub Actions e deve ser corrigido antes do download.",
+        "",
+        "## Licenças",
+        "",
+        "- Este port: MIT (`LICENSE`).",
+        "- AppleSkin original: Unlicense (`LICENSE-APPLESKIN`).",
+        "- SDK Horizon vendored: MIT (`third_party/horizon-mod-sdk/LICENSE`).",
+        "- Créditos e fontes: `NOTICE`.",
+        "",
+        "Projeto não oficial, sem afiliação com Mojang/Microsoft ou com o Horizon.",
+    ]
+    out.write_text("\n".join(lines) + "\n")
+    print(f"wrote {out}")
+
+if __name__ == "__main__":
+    main()

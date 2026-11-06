@@ -1,4 +1,4 @@
-AppleSkin for Horizon
+AppleSkin for Horizon Android
 
 This repository adapts AppleSkin-Horizon by @soufied:
 https://github.com/soufied/AppleSkin-Horizon
@@ -10,6 +10,21 @@ https://github.com/squeek502/AppleSkin
 AppleSkin is dedicated to the public domain under the Unlicense;
 its notice is preserved in LICENSE-APPLESKIN.
 
-Local changes: named Horizon hooks, live main/off-hand food selection,
-edibility checks, an off-hand setting, deterministic packaging, and CI.
-This project is not an official AppleSkin or Horizon release.
+The Android .hmod port uses the official Horizon Android mod SDK and WIT
+contract from Vasysik/horizon-android, vendored under third_party/horizon-mod-sdk:
+https://github.com/Vasysik/horizon-android
+Pinned release: v0.7.7
+Pinned commit: 80700a6f26afe53a368032d8b28bd364f7c3e7e4
+SDK license: MIT, preserved in third_party/horizon-mod-sdk/LICENSE.
+
+Vanilla Minecraft 26.3 food components are derived from misode/mcmeta:
+https://github.com/misode/mcmeta
+Tag: 26.3-summary
+Commit: d96c75fec200c4580dd75e033a76341521165461
+Path: item_components/data.json
+The extracted, pinned subset is food-data/foods-26.3.json.
+
+Local changes: Android .hmod WebAssembly component, main-hand food preview,
+projected hunger, food saturation gain, sandbox tests, pinned SDK, generated
+food table, versioned packaging, GitHub Actions and PT-BR release reports.
+This project is not an official AppleSkin, Horizon, Mojang or Microsoft release.

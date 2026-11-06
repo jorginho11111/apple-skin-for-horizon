@@ -1,8 +1,34 @@
 {
+  "mod_version": "0.3.0",
   "game": "26.3",
-  "hooks": 139,
-  "horizon_repository": "https://github.com/horizon-rust/horizon",
-  "horizon_revision": "02c8607ee8ebd216f2f535c1eb7b62b572830df2",
-  "horizon_mixins_repository": "https://github.com/horizon-rust/horizon-mixins",
-  "horizon_mixins_revision": "cb1ad23022392d88f006cf94cbf6552a73f5df12"
+  "platform": "android",
+  "package_format": "hmod",
+  "horizon_android_repository": "https://github.com/Vasysik/horizon-android",
+  "horizon_android_release": "v0.7.7",
+  "horizon_android_revision": "80700a6f26afe53a368032d8b28bd364f7c3e7e4",
+  "mod_api": "0.1",
+  "sdk": {
+    "repository": "https://github.com/Vasysik/horizon-android",
+    "path": "crates/horizon-mod-sdk",
+    "revision": "80700a6f26afe53a368032d8b28bd364f7c3e7e4",
+    "vendored_at": "third_party/horizon-mod-sdk"
+  },
+  "rust": "1.95.0",
+  "wasm_target": "wasm32-unknown-unknown",
+  "supported_apk_architectures": ["arm64-v8a", "x86_64"],
+  "minimum_android": "9 / API 28",
+  "food_data": {
+    "repository": "https://github.com/misode/mcmeta",
+    "tag": "26.3-summary",
+    "revision": "d96c75fec200c4580dd75e033a76341521165461",
+    "path": "item_components/data.json",
+    "local": "food-data/foods-26.3.json"
+  },
+  "limitations": [
+    "A API 0.1 do Horizon Android expõe a fome atual, mas não a saturação atual, a exaustão, a mão secundária nem o modo de jogo.",
+    "A prévia usa a comida da mão principal e mostra a fome projetada e o ganho de saturação do alimento; não desenha a barra de saturação atual nem a exaustão.",
+    "Apenas alimentos vanilla de Minecraft 26.3 presentes em food-data/foods-26.3.json são reconhecidos; itens de outros mods não têm valores nutricionais expostos pela API.",
+    "As capacidades input, render e ui são experimentais na API 0.1 e podem mudar em versões futuras do Horizon.",
+    "O pacote foi validado em CI e no sandbox de mods; teste em aparelho Android real ainda é necessário."
+  ]
 }
